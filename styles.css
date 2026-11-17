@@ -342,3 +342,51 @@
 .impostos-empty{padding:25px 22px;border:1px dashed #bad4e7;border-radius:5px;background:#f7fbff;color:#405e79;max-width:720px}
 .impostos-empty h3{font-size:16px;color:#14436a;margin:0 0 12px}
 .impostos-notice{font-size:10.5px;color:#6c7f92;margin:0 0 3px}
+
+
+/* NFS-e — refinamentos aprovados: sem E./S., bases automáticas e logs de lotes. */
+.records-table th:nth-child(13){width:142px}
+.records-table th:nth-child(14){width:160px}
+.records-table th:nth-child(15){width:89px;text-align:center}
+.records-table td:nth-child(13){font-weight:400}
+.records-table td:nth-child(15){text-align:center;font-weight:600}
+.records-table{min-width:1490px}
+.tax-base-note{
+  padding:10px 14px;background:#f0f7ff;border:1px solid #c4dbf1;
+  border-radius:5px;margin:8px 0;color:#194a6d;font-size:11.5px;
+}
+.tax-base-note strong{color:#0f4775}
+.tax-base-note span{color:#587892;margin-left:6px}
+.tax-kind{vertical-align:middle!important}
+.tax-kind strong{font-size:12px;color:#17446e}
+.tax-kind p{margin:7px 0 0;font-size:11px;font-weight:400;color:#64809a}
+.tax-other-right{background:#f8fbff!important}
+.tax-other-right>label{width:100%}
+.tax-other-right input{display:block;width:100%}
+.modal.generation-logs-modal{width:min(1080px,calc(100vw - 42px));height:min(620px,calc(100vh - 44px));min-height:420px}
+.generation-logs-modal .modal-content{display:flex;flex-direction:column;min-height:0;padding:12px 12px 0;gap:0}
+.log-section-heading{background:#f0f3f7;font-size:12px;font-weight:700;color:#173d62;padding:8px 10px;border-bottom:1px solid #d7e1eb}
+.log-summary{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 6px 12px;font-size:11px;color:#264d71;flex-wrap:wrap}
+.log-summary>span:first-child{display:inline-block;border:1px solid #bcd2e8;border-radius:5px;background:#f7fbff;padding:6px 8px}
+.log-demo-banner{font-size:10px;color:#637b90;font-style:italic}
+.log-table-shell{flex:1;min-height:0;overflow:auto;border:1px solid #cbd8e6;background:#fff}
+.generation-logs-table{width:100%;min-width:860px;border-collapse:collapse;table-layout:fixed;color:#1a334d;font-size:11px}
+.generation-logs-table th{position:sticky;top:0;z-index:1;background:#e0e8f0;color:#2d5575;text-align:left;padding:8px 7px;border:1px solid #cbd7e2;font-weight:700;white-space:nowrap}
+.generation-logs-table td{vertical-align:top;padding:9px 7px;border:1px solid #d7e0e8;overflow-wrap:anywhere}
+.generation-logs-table tr:nth-child(even){background:#f4f8fc}
+.generation-logs-table th:nth-child(1){width:115px}
+.generation-logs-table th:nth-child(2){width:140px}
+.generation-logs-table th:nth-child(3){width:100px}
+.generation-logs-table th:nth-child(4){width:185px}
+.generation-logs-table th:nth-child(5){width:95px}
+.generation-logs-table th:nth-child(6){width:auto}
+.log-status{font-weight:700;display:inline-block}
+.log-status.ok{color:#087744}.log-status.rejected{color:#bb3535}.log-status.pending{color:#886300}
+.log-lot{display:block;color:#607d9b;font-size:10px;margin-top:3px}
+.log-return{white-space:normal;line-height:1.4}
+.log-empty{text-align:center;color:#698398;padding:22px}
+.log-pagination{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:8px 3px;gap:8px;font-size:10.5px;color:#26486b;border-top:1px solid #d4e1ee}
+.log-pagination-actions{display:flex;align-items:center;gap:5px}
+.log-pagination-actions button{display:inline-flex;align-items:center;justify-content:center;min-width:29px;height:26px;border:1px solid #c6d9ea;background:#fff;color:#2a6595;border-radius:4px;cursor:pointer}
+.log-pagination-actions button:disabled{color:#b3c3d0;background:#f5f8fb;cursor:default}
+.log-pagination-actions button:not(:disabled):hover{background:#e8f4fe}
