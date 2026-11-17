@@ -72,8 +72,15 @@ const itemCatalog=[
   {id:8,name:'Financeira',provider:'Kasabella',pct:0,value:0},
   {id:9,name:'Reserva',provider:'MA FORNECEDOR 5',pct:0,value:0},
 ];
-const taxDefaults={situation:'01',retention:'3',base:1000,pis:0.65,cofins:3,pisRet:0.65,cofinsRet:3,csllBase:1000,csllRate:1,cp:false,cpBase:0,cpRate:0,ir:true,irBase:1000,irRate:1.5,other:0};
-const state={selected:new Set(),page:1,pageSize:16,selectedOnly:false,modal:null,taxReturn:null,taxDraft:null,step:1,activeRow:null,itemSelection:new Set([3,4,5]),itemEdits:{},taxes:{},genForm:{emitter:'LB SERVICOS DE MONTAGENS',date:today,ibscbs:'TESTE001 - Teste - Simulado',service:'140601 - Instalação e montagem de aparelhos, máquinas e equipamentos',iss:'01 - Tributável dentro do município',nbs:'101040000 - Serviços de montagem e de edificação de construções pré-fabricadas',extra:'(1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Documento emitido por ME ou EPP optante pelo Simples Nacional;',fisco:'',env:true},search:'',searchType:'client',searchStart:'',searchEnd:'',searchField:'saleDate',filterItem:'',filterStore:'',filterStatus:'Nao Gerada',filterFin:'',period:'3'};
+const taxDefaults={situation:'01',retention:'3',pis:0.65,cofins:3,pisRet:0.65,cofinsRet:3,csllRate:1,cp:false,cpRate:0,ir:true,irRate:1.5,other:0};
+const state={selected:new Set(),page:1,pageSize:16,selectedOnly:false,modal:null,taxReturn:null,taxDraft:null,generationLogs:[],logPage:1,logPageSize:10,logBatchSequence:2,step:1,activeRow:null,itemSelection:new Set([3,4,5]),itemEdits:{},taxes:{},genForm:{emitter:'LB SERVICOS DE MONTAGENS',date:today,ibscbs:'TESTE001 - Teste - Simulado',service:'140601 - Instalação e montagem de aparelhos, máquinas e equipamentos',iss:'01 - Tributável dentro do município',nbs:'101040000 - Serviços de montagem e de edificação de construções pré-fabricadas',extra:'(1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Documento emitido por ME ou EPP optante pelo Simples Nacional;',fisco:'',env:true},search:'',searchType:'client',searchStart:'',searchEnd:'',searchField:'saleDate',filterItem:'',filterStore:'',filterStatus:'Nao Gerada',filterFin:'',period:'3'};
+// Histórico ilustrativo: dados inventados exclusivamente para a demonstração, sem vínculo com prefeitura.
+state.generationLogs=[
+  {id:'demo-log-1',lot:'DEMO-001',generatedAt:'16/11/2026 10:15',status:'Autorizada',recordId:rows[0].id,client:rows[0].client,contract:rows[0].contract,emitter:'LB SERVICOS DE MONTAGENS',items:['03','04','05','09'],returnMessage:'Autorizada (simulação) — NFS-e processada para demonstração.'},
+  {id:'demo-log-2',lot:'DEMO-001',generatedAt:'16/11/2026 10:15',status:'Rejeitada',recordId:rows[1].id,client:rows[1].client,contract:rows[1].contract,emitter:'DA SERVICOS DE MONTAGENS',items:['03','04','05'],returnMessage:'Rejeitada (simulação) — serviço municipal incompatível com o cadastro do emitente (motivo fictício).'},
+  {id:'demo-log-3',lot:'DEMO-001',generatedAt:'16/11/2026 10:15',status:'Aguardando resposta',recordId:rows[2].id,client:rows[2].client,contract:rows[2].contract,emitter:'G5 SERVICOS DE MONTAGENS',items:['03','04'],returnMessage:'Processamento pendente (simulação) — aguardando retorno do lote.'}
+];
+
 const $ = id => document.getElementById(id);
 const root=$('modal-root');
 function toast(message,type='success'){
@@ -117,7 +124,7 @@ function renderTable(){
     const tooltip=r.fin?`Data Fin: ${r.finDate}`:'Financeiro pendente de processamento';
     return `<tr class="${sel?'is-selected ':''}${locked?'is-locked':''}" data-row-id="${r.id}">
       <td><input type="checkbox" data-select-row="${r.id}" aria-label="Selecionar contrato ${escapeHtml(r.contract||r.code)}" ${sel?'checked':''} ${locked?'disabled title="Item 7: montagem não concluída"':''} /></td>
-      <td>${r.emp}</td><td>${r.store}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.client)}</td><td>${escapeHtml(r.saleType)}</td><td>${escapeHtml(r.contract)}</td><td>${r.status==='Nao Gerada'?'Não Gerada':escapeHtml(r.status)}</td><td>${r.saleDate}</td><td>${escapeHtml(r.orders)}</td><td class="money">${money(r.value)}</td><td>${escapeHtml(r.sentItems.join(', '))}</td><td>S</td><td>${r.montage||'—'}</td><td>${r.future||'—'}</td>
+      <td>${r.emp}</td><td>${r.store}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.client)}</td><td>${escapeHtml(r.saleType)}</td><td>${escapeHtml(r.contract)}</td><td>${r.status==='Nao Gerada'?'Não Gerada':escapeHtml(r.status)}</td><td>${r.saleDate}</td><td>${escapeHtml(r.orders)}</td><td class="money">${money(r.value)}</td><td>${escapeHtml(r.sentItems.join(', '))}</td><td>${r.montage||'—'}</td><td>${r.future||'—'}</td>
       <td><button class="status-mark ${r.fin?'':'warning'}" type="button" aria-label="${escapeHtml(tooltip)}" title="${escapeHtml(tooltip)}" data-action="fin-info" data-record="${r.id}">${icon(r.fin?'check':'alert',20)}</button></td>
     </tr>`;
   }).join('');
@@ -238,40 +245,70 @@ function taxForActive(){const row=activeRow();return state.taxDraft?{...state.ta
 function taxValue(base,rate){return money(base*rate/100);}
 function taxInput(field,value,disabled=false){return `<input type="text" inputmode="decimal" data-tax-field="${field}" value="${escapeHtml(value)}" ${disabled?'disabled':''}>`;}
 function taxPct(field,val,disabled=false){return taxInput(field,`${decimal(val,2)} %`,disabled);}
+function contractSelectedItems(row=activeRow()){
+ if(Array.isArray(row.generatedItems)&&row.generatedItems.length)return row.generatedItems;
+ const ids=selectedItemIds(),edits=state.itemEdits[row.id]||{};
+ return itemCatalog.filter(i=>ids.has(i.id)).map(i=>({...i,...(edits[i.id]||{})}));
+}
+function getTaxBase(row=activeRow()){
+ const sum=contractSelectedItems(row).reduce((s,i)=>s+Math.max(0,Number(i.value)||0),0);
+ return Math.round((sum+Number.EPSILON)*100)/100;
+}
 function taxModal(){
-  const t=taxForActive(),ret=t.retention==='3',cpi=!!t.cp,iri=!!t.ir;
-  const label=(text,field,content,required=false)=>`<label><span>${text}${required?' <small>*</small>':''}</span>${content}</label>`;
-  const taxRow=(text,field,base,rate,checked,checkKey,divider=false)=>`<tr class="tax-row-compact ${divider?'row-divider':''}">
-    <td><div class="tax-field"><label class="tax-checkbox"><input type="checkbox" data-tax-check="${checkKey}" ${checked?'checked':''}><span>${text} - Base de Cálculo</span></label>${taxInput(field,decimal(base),!checked)}</div></td>
-    <td>${label('Alíquota',checkKey==='cp'?'cpRate':'irRate',taxPct(checkKey==='cp'?'cpRate':'irRate',rate,!checked))}</td>
-    <td>${label('Valor','',taxInput('_readonly',taxValue(base,rate),true))}</td></tr>`;
-  const taxContent=`<div class="tax-subtitle">PIS/COFINS/CSLL</div><div class="tax-top">
-    <label for="tax-situation">Situação tributária PIS/COFINS<select id="tax-situation" data-tax-select="situation"><option value="01" ${t.situation==='01'?'selected':''}>01 - Operação Tributável com Alíquota Básica</option><option value="02" ${t.situation==='02'?'selected':''}>02 - Operação Tributável com Alíquota Diferenciada</option><option value="04" ${t.situation==='04'?'selected':''}>04 - Operação Tributável Monofásica</option><option value="06" ${t.situation==='06'?'selected':''}>06 - Operação Tributável a Alíquota Zero</option></select></label>
-    <label for="tax-retention">Tipo de retenção PIS/COFINS<select id="tax-retention" data-tax-select="retention"><option value="0" ${!ret?'selected':''}>0 - PIS/COFINS/CSLL Não Retidos</option><option value="3" ${ret?'selected':''}>3 - PIS/COFINS/CSLL Retidos</option></select></label></div>
-    <div class="tax-layout"><table><tbody>
-      <tr><td>${label('Base de cálculo PIS/COFINS','base',taxInput('base',money(t.base)),true)}</td>
-      <td class="rate-cell"><div class="tax-rate-list">
-        ${label('Alíquota PIS - Ap. Própria','pis',taxPct('pis',t.pis))}
-        ${label('Alíquota COFINS - Ap. Própria','cofins',taxPct('cofins',t.cofins))}
-        ${label('Alíquota PIS - Retido','pisRet',taxPct('pisRet',ret?t.pisRet:0,!ret),ret)}
-        ${label('Alíquota COFINS - Retido','cofinsRet',taxPct('cofinsRet',ret?t.cofinsRet:0,!ret),ret)}
-      </div></td>
-      <td class="value-cell"><div class="tax-rate-list">
-        ${label('Valor','',taxInput('_readonly',taxValue(t.base,t.pis),true))}
-        ${label('Valor','',taxInput('_readonly',taxValue(t.base,t.cofins),true))}
-        ${label('Valor','',taxInput('_readonly',ret?taxValue(t.base,t.pisRet):'0,00',true))}
-        ${label('Valor','',taxInput('_readonly',ret?taxValue(t.base,t.cofinsRet):'0,00',true))}
-      </div></td></tr>
-      <tr class="tax-row-compact row-divider"><td>${label('CSLL - Base de Cálculo','csllBase',taxInput('csllBase',money(ret?t.csllBase:0),!ret),ret)}</td><td>${label('Alíquota','csllRate',taxPct('csllRate',ret?t.csllRate:0,!ret),ret)}</td><td>${label('Valor','',taxInput('_readonly',ret?taxValue(t.csllBase,t.csllRate):'0,00',true))}</td></tr>
-      ${taxRow('CP','cpBase',t.cpBase,t.cpRate,cpi,'cp',true)}
-      ${taxRow('IR','irBase',t.irBase,t.irRate,iri,'ir',true)}
-      <tr class="tax-row-compact row-divider"><td>${label('Outras Retenções','other',taxInput('other',money(t.other)))}</td><td class="spacer-cell"></td><td class="spacer-cell"></td></tr>
-    </tbody></table></div>
-    <p class="tax-note">Valores e combos demonstrativos com base nos prints enviados. Na integração real, obedecer às regras e opções do portal da prefeitura.</p>`;
-  return modalMarkup('Tributos Federais',taxContent,button('Salvar','save-taxes','','save'),'tax-modal');
+ const t=taxForActive(),ret=t.retention==='3',base=getTaxBase(),cp=!!t.cp,ir=!!t.ir;
+ const items=contractSelectedItems().map(i=>String(i.id).padStart(2,'0')).join(', ')||'nenhum';
+ const label=(name,input,required=false)=>`<label><span>${name}${required?' <small>*</small>':''}</span>${input}</label>`;
+ const pct=(name,key,value,disabled=false,required=false)=>label(name,taxPct(key,value,disabled),required);
+ const val=(value)=>label('Valor',taxInput('_readonly',money(value),true));
+ const row=(title,rateKey,rate,enabled,checkId)=>{
+  return `<tr class="tax-row-compact row-divider">
+    <td class="tax-kind"><label class="tax-checkbox"><input type="checkbox" data-tax-check="${checkId}" ${enabled?'checked':''}><span>${title}</span></label></td>
+    <td>${pct('Alíquota',rateKey,enabled?rate:0,!enabled)}</td>
+    <td>${val(enabled?base*rate/100:0)}</td>
+  </tr>`;
+ };
+ const rates=`<div class="tax-rate-list">
+  ${pct('Alíquota PIS - Ap. Própria','pis',t.pis)}
+  ${pct('Alíquota COFINS - Ap. Própria','cofins',t.cofins)}
+  ${pct('Alíquota PIS - Retido','pisRet',ret?t.pisRet:0,!ret,ret)}
+  ${pct('Alíquota COFINS - Retido','cofinsRet',ret?t.cofinsRet:0,!ret,ret)}
+ </div>`;
+ const amounts=`<div class="tax-rate-list">
+  ${val(base*t.pis/100)}
+  ${val(base*t.cofins/100)}
+  ${val(ret?base*t.pisRet/100:0)}
+  ${val(ret?base*t.cofinsRet/100:0)}
+ </div>`;
+ const content=`<div class="tax-subtitle">PIS/COFINS/CSLL</div>
+  <div class="tax-top">
+   <label for="tax-situation">Situação tributária PIS/COFINS
+     <select id="tax-situation" data-tax-select="situation">
+       <option value="01" ${t.situation==='01'?'selected':''}>01 - Operação Tributável com Alíquota Básica</option>
+       <option value="02" ${t.situation==='02'?'selected':''}>02 - Operação Tributável com Alíquota Diferenciada</option>
+       <option value="04" ${t.situation==='04'?'selected':''}>04 - Operação Tributável Monofásica</option>
+       <option value="06" ${t.situation==='06'?'selected':''}>06 - Operação Tributável a Alíquota Zero</option>
+     </select>
+   </label>
+   <label for="tax-retention">Tipo de retenção PIS/COFINS
+     <select id="tax-retention" data-tax-select="retention">
+       <option value="0" ${!ret?'selected':''}>0 - PIS/COFINS/CSLL Não Retidos</option>
+       <option value="3" ${ret?'selected':''}>3 - PIS/COFINS/CSLL Retidos</option>
+     </select>
+   </label>
+  </div>
+  <div class="tax-base-note"><strong>Base de cálculo automática:</strong> R$ ${money(base)} <span>• Itens considerados: ${escapeHtml(items)}. A base usa o valor dos itens preparados/selecionados para este contrato.</span></div>
+  <div class="tax-layout"><table><tbody>
+    <tr><td class="tax-kind"><strong>PIS/COFINS</strong><p>Alíquotas aplicadas sobre a base automática.</p></td><td>${rates}</td><td>${amounts}</td></tr>
+    <tr class="tax-row-compact row-divider"><td class="tax-kind"><strong>CSLL</strong><p>${ret?'Retenção habilitada pelo combo.':'Retenção não habilitada.'}</p></td><td>${pct('Alíquota','csllRate',ret?t.csllRate:0,!ret,ret)}</td><td>${val(ret?base*t.csllRate/100:0)}</td></tr>
+    ${row('CP - Contribuição Previdenciária','cpRate',t.cpRate,cp,'cp')}
+    ${row('IR - Imposto de Renda','irRate',t.irRate,ir,'ir')}
+    <tr class="tax-row-compact row-divider"><td class="spacer-cell"></td><td class="spacer-cell"></td><td class="tax-other-right">${label('Outras Retenções',taxInput('other',money(t.other)))}</td></tr>
+  </tbody></table></div>
+  <p class="tax-note">Os campos de base foram retirados: o valor é derivado automaticamente dos itens. Cálculos e classificações fiscais continuam demonstrativos até homologação das regras da prefeitura.</p>`;
+ return modalMarkup('Tributos Federais',content,button('Salvar','save-taxes','','save'),'tax-modal');
 }
 function impostosModal(){
-  const r=activeRow(),t=state.taxes[r.id];
+  const r=activeRow(),t=state.taxes[r.id],base=getTaxBase(r);
   if(!t){
     return modalMarkup('Impostos',`<div class="impostos-empty"><h3>Sem tributos federais salvos</h3><p>Selecione o contrato e preencha <b>Tributos Federais</b>, depois clique em <b>Salvar</b>. Os valores aparecerão aqui para consulta.</p><p>Este painel apresenta dados locais e demonstrativos, não impostos apurados em produção.</p></div>`,button('Fechar','close'),'impostos-modal');
   }
@@ -279,15 +316,15 @@ function impostosModal(){
   const add=(title,base,rate,amount)=>{
     data.push({title,base,rate,amount});
   };
-  add('PIS - Ap. Própria',t.base,t.pis,t.base*t.pis/100);
-  add('COFINS - Ap. Própria',t.base,t.cofins,t.base*t.cofins/100);
+  add('PIS - Ap. Própria',base,t.pis,base*t.pis/100);
+  add('COFINS - Ap. Própria',base,t.cofins,base*t.cofins/100);
   if(t.retention==='3'){
-    add('PIS - Retido',t.base,t.pisRet,t.base*t.pisRet/100);
-    add('COFINS - Retido',t.base,t.cofinsRet,t.base*t.cofinsRet/100);
-    add('CSLL',t.csllBase,t.csllRate,t.csllBase*t.csllRate/100);
+    add('PIS - Retido',base,t.pisRet,base*t.pisRet/100);
+    add('COFINS - Retido',base,t.cofinsRet,base*t.cofinsRet/100);
+    add('CSLL',base,t.csllRate,base*t.csllRate/100);
   }
-  if(t.ir)add('IR',t.irBase,t.irRate,t.irBase*t.irRate/100);
-  if(t.cp)add('CP',t.cpBase,t.cpRate,t.cpBase*t.cpRate/100);
+  if(t.ir)add('IR',base,t.irRate,base*t.irRate/100);
+  if(t.cp)add('CP',base,t.cpRate,base*t.cpRate/100);
   if(t.other>0)add('Outras Retenções',null,null,t.other);
   const body=`<div class="impostos-description">Contrato <strong>${escapeHtml(r.contract||r.code)}</strong> · Valores dos <strong>Tributos Federais salvos</strong> nesta sessão (demonstrativos). Campos não aplicáveis exibidos como “—”.</div>
     <div class="impostos-table-wrap"><table class="impostos-table" aria-label="Impostos federais do contrato"><thead><tr>
@@ -300,6 +337,35 @@ function impostosModal(){
     </tr>`).join('')}</tbody></table></div>
     <p class="impostos-notice">Os valores são calculados exclusivamente para apresentação (base × alíquota / 100); não substituem as regras fiscais da prefeitura.</p>`;
   return modalMarkup('Impostos',body,button('Fechar','close'),'impostos-modal');
+}
+
+function generationLogsModal(){
+ const total=state.generationLogs.length,pageSize=state.logPageSize,maxPage=Math.max(1,Math.ceil(total/pageSize));
+ state.logPage=Math.min(Math.max(1,state.logPage),maxPage);
+ const from=(state.logPage-1)*pageSize,shown=state.generationLogs.slice(from,from+pageSize);
+ const newest=state.generationLogs[0],date=newest?.generatedAt||'—';
+ const list=shown.map(l=>{
+  const statusClass=l.status==='Autorizada'?'ok':l.status==='Rejeitada'?'rejected':'pending';
+  return `<tr>
+    <td><span class="log-status ${statusClass}">${escapeHtml(l.status)}</span><small class="log-lot" title="Identificação do lote">Lote ${escapeHtml(l.lot)}</small></td>
+    <td>${escapeHtml(l.client)}</td><td>${escapeHtml(l.contract||'—')}</td><td>${escapeHtml(l.emitter||'—')}</td>
+    <td>${escapeHtml((l.items||[]).join(', ')||'—')}</td><td class="log-return" title="${escapeHtml(l.returnMessage)}">${escapeHtml(l.returnMessage)}</td>
+  </tr>`;
+ }).join('');
+ const body=`<div class="log-section-heading">Logs geração de notas</div>
+ <div class="log-summary"><span><b>Gerado em:</b> ${escapeHtml(date)}</span><span class="log-demo-banner">Registros simulados — não consultam prefeitura ou integração fiscal</span></div>
+ <div class="log-table-shell"><table class="generation-logs-table" aria-label="Log de geração de notas por lote">
+ <thead><tr><th>Status</th><th>Cliente</th><th>Contrato</th><th>Emitente</th><th>Itens Gerados</th><th>Retorno</th></tr></thead>
+ <tbody>${list||'<tr><td colspan="6" class="log-empty">Nenhum registro de lote nesta sessão.</td></tr>'}</tbody></table></div>
+ <div class="log-pagination"><div class="log-pagination-actions">
+   <button type="button" data-modal-action="logs-first" ${state.logPage===1?'disabled':''} title="Primeira página">«</button>
+   <button type="button" data-modal-action="logs-prev" ${state.logPage===1?'disabled':''} title="Página anterior">‹</button>
+   <span>Página <b>${state.logPage}</b> de ${maxPage}</span>
+   <button type="button" data-modal-action="logs-next" ${state.logPage===maxPage?'disabled':''} title="Próxima página">›</button>
+   <button type="button" data-modal-action="logs-last" ${state.logPage===maxPage?'disabled':''} title="Última página">»</button>
+   <button type="button" data-modal-action="logs-refresh" title="Atualizar lista local">${icon('refresh',14)}</button>
+ </div><span>Resultado ${total?from+1:0} - ${Math.min(total,from+pageSize)} de ${total}</span></div>`;
+ return modalMarkup('Log Geração Notas',body,button('Fechar','close'),'generation-logs-modal');
 }
 
 // Manual funcional contextual — nova tela NFS-e.
@@ -331,7 +397,7 @@ const HELP_GROUPS = [
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Botão</th><th>Função proposta</th><th>No protótipo</th></tr></thead><tbody>
         <tr><td><b>Ver selecionados</b></td><td>Alternar entre todos os registros encontrados e apenas os contratos marcados.</td><td>Filtra localmente.</td></tr>
         <tr><td><b>Gerar NFS-e</b></td><td>Iniciar a seleção de itens e a configuração dos dados de emissão da nota de serviço.</td><td>Abre duas etapas com dados de exemplo.</td></tr>
-        <tr><td><b>Transmitir</b></td><td>Enviar documentos preparados à integração responsável pela autorização fiscal.</td><td>Mensagem simulada; não transmite.</td></tr>
+        <tr><td><b>Transmitir</b></td><td>Em produção, enviar lotes à integração fiscal. O retorno deverá alimentar os logs.</td><td>Simula um lote dos contratos selecionados e atualiza o Log Geração Notas; não transmite externamente.</td></tr>
         <tr><td><b>DANFSe</b></td><td>Acessar o documento auxiliar da Nota Fiscal de Serviço.</td><td>Abre documento ilustrativo.</td></tr>
         <tr><td><b>Reenviar NFS-e e XML por e-mail</b></td><td>Reenviar os documentos fiscais ao destinatário.</td><td>Somente demonstração; não envia e-mail.</td></tr>
         <tr><td><b>Forçar Nova Consulta</b></td><td>Atualizar a situação dos documentos junto à integração fiscal.</td><td>Atualiza a visualização local.</td></tr>
@@ -343,10 +409,11 @@ const HELP_GROUPS = [
         <tr><td><b>Histórico</b></td><td>Consultar movimentações e eventos do registro.</td><td>Exibe histórico ilustrativo.</td></tr>
         <tr><td><b>Tributos Federais</b></td><td>Abrir o cadastro de PIS/COFINS/CSLL, CP, IR e outras retenções.</td><td>Abre formulário com Salvar local.</td></tr>
         <tr><td><b>Impostos</b></td><td>Consultar em tabela os tributos federais salvos para o contrato, separando apuração própria e retenções.</td><td>Consulta local e somente leitura; não exibe ICMS fictício.</td></tr>
+        <tr><td><b>Log Geração Notas</b></td><td>Acompanhar notas preparadas, autorizadas, rejeitadas ou aguardando resposta em lotes, com cliente, contrato, emitente, itens e retorno.</td><td>Histórico de lotes fictícios, com simulação de preparação e transmissão.</td></tr>
         <tr><td><b>Imprimir</b></td><td>Imprimir os documentos disponíveis.</td><td>Aciona a impressão do navegador.</td></tr>
         <tr><td><b>Ajuda</b></td><td>Abrir este manual funcional da tela NFS-e.</td><td>Manual navegável e pesquisável.</td></tr>
       </tbody></table></div>
-      <div class="help-notice"><b>Ordem e posicionamento:</b> <b>Ver selecionados</b> vem antes de <b>Gerar NFS-e</b>; <b>Tributos Federais</b> e <b>Impostos</b> ficam após <b>Histórico</b>; <b>Imprimir</b> e <b>Ajuda</b> permanecem no fim da barra, com espaçamento uniforme.</div>
+      <div class="help-notice"><b>Ordem e posicionamento:</b> <b>Ver selecionados</b> vem antes de <b>Gerar NFS-e</b>; <b>Tributos Federais</b>, <b>Impostos</b> e <b>Log Geração Notas</b> ficam após <b>Histórico</b>; <b>Imprimir</b> e <b>Ajuda</b> permanecem no fim da barra, com espaçamento uniforme.</div>
     `
   },
   {
@@ -388,8 +455,7 @@ const HELP_GROUPS = [
         <tr><td><b>Pedidos</b></td><td>Pedidos associados à venda/contrato.</td><td>Vínculo com pedidos existentes.</td></tr>
         <tr><td><b>Valor Venda</b></td><td>Valor financeiro da venda.</td><td>Registro comercial da venda.</td></tr>
         <tr><td><b>Itens Enviados p/ NFS-e</b></td><td>Itens encaminhados à composição da NFS-e.</td><td>Controle de itens da emissão; persistência exata a confirmar.</td></tr>
-        <tr><td><b>E./S.</b></td><td>Indicador de entrada/saída preservado da tela original.</td><td>Campo existente na listagem; origem a confirmar.</td></tr>
-        <tr class="help-accent-row"><td><b>Data Término de Montagem</b> <span class="help-label-new">Nova</span></td><td>Data efetiva de conclusão da montagem, no formato <b>DD/MM/AAAA</b>, sem horário.</td><td><b>Pós-Venda</b> — conclusão da montagem vinculada ao contrato.</td></tr>
+                <tr class="help-accent-row"><td><b>Data Término de Montagem</b> <span class="help-label-new">Nova</span></td><td>Data efetiva de conclusão da montagem, no formato <b>DD/MM/AAAA</b>, sem horário.</td><td><b>Pós-Venda</b> — conclusão da montagem vinculada ao contrato.</td></tr>
         <tr class="help-accent-row"><td><b>Data Término Liberação Futura</b> <span class="help-label-new">Nova</span></td><td>Data de término da liberação futura, no formato <b>DD/MM/AAAA</b>, sem horário.</td><td><b>Gerenciamento de Contratos Futuros</b> — campo <b>Término Lib.</b> do contrato.</td></tr>
         <tr class="help-accent-row"><td><b>Fin Processado</b> <span class="help-label-new">Nova</span></td><td>Check azul quando processado e triângulo de alerta quando pendente. Na finalização, o tooltip mostra data e hora.</td><td><b>Comercial &gt; Contratos Realizados</b> — situação do processamento financeiro.</td></tr>
       </tbody></table></div>
@@ -447,20 +513,17 @@ const HELP_GROUPS = [
       <div class="help-two-cols"><div class="help-info-card"><h4>Situação tributária PIS/COFINS</h4><p>Combo com a classificação tributária. Exemplo exibido: <b>01 — Operação Tributável com Alíquota Básica</b>.</p></div><div class="help-info-card"><h4>Tipo de retenção PIS/COFINS</h4><p>Combo para definir retenção. Exemplos de referência: <b>0 — Não Retidos</b> e <b>3 — PIS/COFINS/CSLL Retidos</b>.</p></div></div>
       <h3>Campos do formulário</h3>
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Grupo</th><th>Campos e comportamento</th></tr></thead><tbody>
-        <tr><td><b>PIS/COFINS</b></td><td>Base de cálculo PIS/COFINS; alíquota e valor de PIS — Apuração Própria; alíquota e valor de COFINS — Apuração Própria.</td></tr>
+        <tr><td><b>PIS/COFINS</b></td><td>Alíquotas e valores de PIS/COFINS — Apuração Própria, com base apurada automaticamente a partir dos itens selecionados/preparados.</td></tr>
         <tr><td><b>Retenções de PIS/COFINS</b></td><td>Alíquota e valor de PIS — Retido; alíquota e valor de COFINS — Retido; preenchimento vinculado ao tipo de retenção.</td></tr>
-        <tr><td><b>CSLL</b></td><td>Base de cálculo, alíquota e valor, com exigência condicionada às regras de retenção aplicáveis.</td></tr>
-        <tr><td><b>CP — Contribuição Previdenciária</b></td><td>Checkbox de habilitação, base de cálculo, alíquota e valor.</td></tr>
-        <tr><td><b>IR — Imposto de Renda</b></td><td>Checkbox de habilitação, base de cálculo, alíquota e valor.</td></tr>
-        <tr><td><b>Outras Retenções</b></td><td>Campo destinado ao valor de outras retenções.</td></tr>
+        <tr><td><b>CSLL</b></td><td>Alíquota e valor calculados sobre a base automática quando a retenção for aplicável.</td></tr>
+        <tr><td><b>CP — Contribuição Previdenciária</b></td><td>Checkbox de habilitação, alíquota e valor calculado com a base automática.</td></tr>
+        <tr><td><b>IR — Imposto de Renda</b></td><td>Checkbox de habilitação, alíquota e valor calculado com a base automática.</td></tr>
+        <tr><td><b>Outras Retenções</b></td><td>Campo de valor posicionado no <b>canto direito</b> do formulário.</td></tr>
       </tbody></table></div>
-      <h3>Exemplo ilustrativo do print aprovado</h3><div class="help-table-wrap"><table class="help-table"><thead><tr><th>Tributo</th><th>Base</th><th>Alíquota</th><th>Valor</th></tr></thead><tbody>
-        <tr><td>PIS</td><td>R$ 1.000,00</td><td>0,65%</td><td>R$ 6,50</td></tr>
-        <tr><td>COFINS</td><td>R$ 1.000,00</td><td>3,00%</td><td>R$ 30,00</td></tr>
-        <tr><td>CSLL</td><td>R$ 1.000,00</td><td>1,00%</td><td>R$ 10,00</td></tr>
-        <tr><td>IR</td><td>R$ 1.000,00</td><td>1,50%</td><td>R$ 15,00</td></tr>
-      </tbody></table></div>
-      <h3>Salvar e validação</h3><ul class="help-bullets"><li>Manter apenas o botão <b>Salvar</b> no rodapé, com <b>X</b> no cabeçalho para fechar a janela.</li><li>Salvar os tributos associados ao registro/contrato correspondente.</li><li>Aplicar obrigatoriedades, dependências entre campos e cálculos conforme as regras do <b>portal da prefeitura</b> adotado na integração.</li><li>Não apresentar opção <b>Fechar</b> no rodapé.</li></ul>
+      <h3>Base de cálculo automática</h3><p>Os campos editáveis <b>Base de cálculo PIS/COFINS</b>, <b>CSLL - Base de Cálculo</b>, <b>CP - Base de Cálculo</b> e <b>IR - Base de Cálculo</b> foram removidos. A base decorre da <b>soma dos valores dos itens preparados para o contrato</b>; antes da preparação, o protótipo usa os itens selecionados na etapa de geração, incluindo o item 9 quando aplicável.</p>
+      <div class="help-notice">Exemplo: itens 3 (R$ 9,36), 4 (R$ 7,49), 5 (R$ 17,78) e 9 (R$ 0,00) somam <b>R$ 34,63</b>. Alíquota PIS de 0,65% resulta em aproximadamente R$ 0,23. Se o valor de um item for editado, a base e os resultados demonstrativos devem acompanhar o novo valor. A base é exibida apenas como informação, não como campo editável.</div>
+      <p>Em produção, deverão ser validadas as exclusões/deduções legais eventualmente aplicáveis à base de cada tributo. A implementação atual não representa uma apuração fiscal homologada.</p>
+      <h3>Salvar e validação</h3><ul class="help-bullets"><li>Manter apenas o botão <b>Salvar</b> no rodapé, com <b>X</b> no cabeçalho para fechar a janela.</li><li>Salvar alíquotas, opções de retenção e outras retenções associadas ao registro/contrato; a base e os valores são calculados a partir dos itens no momento da consulta.</li><li>Aplicar obrigatoriedades, dependências entre campos e cálculos conforme as regras do <b>portal da prefeitura</b> adotado na integração.</li><li>Não apresentar opção <b>Fechar</b> no rodapé.</li></ul>
       <div class="help-notice help-warning"><b>Pendente de homologação funcional:</b> o município/portal de referência, a lista completa dos combos, as exigências de preenchimento e os cálculos oficiais precisam ser confirmados. Os valores e opções deste protótipo são demonstrativos, não uma implementação tributária validada.</div>
     `
   },
@@ -470,12 +533,35 @@ const HELP_GROUPS = [
     html:`
       <h2>Janela Impostos</h2>
       <p>Ao lado de <b>Tributos Federais</b>, o botão <b>Impostos</b> abre uma tabela apenas para consulta. A lista considera o contrato selecionado e os valores efetivamente <b>salvos</b> no formulário de Tributos Federais durante a sessão.</p>
-      <ul class="help-bullets"><li>Exibe PIS e COFINS de apuração própria, suas retenções quando configuradas, CSLL, IR, CP e outras retenções quando aplicáveis.</li><li>Exibe base de cálculo, alíquota e valor calculado demonstrativamente com base × alíquota / 100.</li><li>Colunas como Mod., S.T., desoneração e destaque ficam com <b>—</b> quando não se aplicam aos dados disponíveis, sem inventar informações de ICMS.</li><li>Sem tributos salvos, mostra um aviso em vez de criar valores fiscais fictícios.</li><li>Fechar a janela não altera os tributos; reabrir mostra a última configuração salva enquanto a página estiver carregada.</li></ul>
+      <ul class="help-bullets"><li>Exibe PIS e COFINS de apuração própria, suas retenções quando configuradas, CSLL, IR, CP e outras retenções quando aplicáveis.</li><li>Exibe base automática obtida dos itens, alíquota e valor demonstrativo calculado por base × alíquota / 100, sem campo editável de base.</li><li>Colunas como Mod., S.T., desoneração e destaque ficam com <b>—</b> quando não se aplicam aos dados disponíveis, sem inventar informações de ICMS.</li><li>Sem tributos salvos, mostra um aviso em vez de criar valores fiscais fictícios.</li><li>Fechar a janela não altera os tributos; reabrir mostra a última configuração salva enquanto a página estiver carregada.</li></ul>
       <div class="help-notice help-warning">Essa visualização não realiza apuração oficial e não substitui o cálculo ou o leiaute exigidos pela prefeitura.</div>
     `
   },
   {
-    id:'totals', title:'Totalizadores e rodapé', icon:'filter', kicker:'08 · Indicadores',
+    id:'generation-logs', title:'Log Geração Notas', icon:'file', kicker:'09 · Acompanhamento por lotes',
+    subtitle:'Status, emitentes, itens e retornos dos lotes.',
+    html:`
+      <h2>Log Geração Notas — acompanhamento de lotes</h2>
+      <p>Na barra principal, <b>Log Geração Notas</b> fica entre <b>Impostos</b> e <b>Imprimir</b>. Abre a janela de consulta dos registros gerados em lotes, preservando o padrão visual do eFinance.</p>
+      <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Coluna</th><th>Informação</th></tr></thead><tbody>
+        <tr><td><b>Status</b></td><td>Preparada, Aguardando preparação/resposta, Autorizada ou Rejeitada, conforme retorno do processo.</td></tr>
+        <tr><td><b>Cliente</b></td><td>Nome do cliente associado ao contrato processado.</td></tr>
+        <tr><td><b>Contrato</b></td><td>Identificação do contrato vinculado aos itens do lote.</td></tr>
+        <tr><td><b>Emitente</b></td><td>Prestador selecionado na preparação da NFS-e.</td></tr>
+        <tr><td><b>Itens Gerados</b></td><td>Códigos dos itens incluídos na geração do documento, inclusive inclusão automática do item 9.</td></tr>
+        <tr><td><b>Retorno</b></td><td>Mensagem de autorização, pendência ou rejeição, incluindo o motivo da rejeição fornecido pela integração fiscal quando existir.</td></tr>
+      </tbody></table></div>
+      <h3>Fluxo esperado</h3><ol class="help-numbered">
+        <li>O usuário prepara itens no <b>Gerar NFS-e</b>; a preparação entra no acompanhamento do lote.</li>
+        <li>Ao transmitir um lote, os registros são associados a uma identificação de lote e ficam acompanháveis até obter resultado.</li>
+        <li>Se a prefeitura autorizar a nota, o campo Retorno apresentará essa informação. Em caso de rejeição, exibirá a causa retornada para correção.</li>
+        <li>O histórico dispõe de paginação, data e identificação do lote; a implementação real precisará consultar e persistir os retornos oficiais.</li>
+      </ol>
+      <div class="help-notice help-warning"><b>Protótipo:</b> os lotes iniciais, as autorizações, rejeições e motivos exibidos são fictícios. <b>Transmitir</b> apenas simula resultados localmente, sem chamar TecnoSpeed, prefeitura ou NFS-e Nacional.</div>
+    `
+  },
+  {
+    id:'totals', title:'Totalizadores e rodapé', icon:'filter', kicker:'10 · Indicadores',
     subtitle:'O que soma cada indicador e como é calculado.',
     html:`
       <h2>Totalizadores no rodapé</h2><p>Os três primeiros indicadores mostram <b>quantidade de itens</b>. O quarto mostra <b>valor monetário da venda</b>.</p>
@@ -490,11 +576,11 @@ const HELP_GROUPS = [
     `
   },
   {
-    id:'removed', title:'O que foi removido', icon:'trash', kicker:'09 · Simplificação',
+    id:'removed', title:'O que foi removido', icon:'trash', kicker:'11 · Simplificação',
     subtitle:'Botões, combos e tipos de venda excluídos.',
     html:`
       <h2>Elementos retirados da tela NFS-e</h2><p>A interface deve ficar exclusiva para Nota Fiscal de Serviço, sem misturar ações pertinentes apenas à NF-e.</p>
-      <h3>Botões removidos</h3><div class="help-chip-list"><span>Gerar Nota</span><span>Dados NF-e</span><span>Volumes</span><span>Mensagens</span><span>Gerar Devolução</span><span>Gerar Nota Avulsa</span><span>Logs Rece. Federal</span><span>CC-e</span><span>Aplicar Desconto</span><span>Alt. Cliente</span><span>Pré-visualizar DANFSe</span></div>
+      <h3>Botões removidos</h3><div class="help-chip-list"><span>Gerar Nota</span><span>Dados NF-e</span><span>Volumes</span><span>Mensagens</span><span>Gerar Devolução</span><span>Gerar Nota Avulsa</span><span>Logs Rece. Federal</span><span>CC-e</span><span>Aplicar Desconto</span><span>Alt. Cliente</span><span>Pré-visualizar DANFSe</span><span>Coluna E./S.</span></div>
       <p><b>Observação:</b> o comando antigo <b>Gerar Nota</b> foi substituído no novo fluxo pelo botão específico <b>Gerar NFS-e</b>.</p>
       <h3>Combos removidos</h3><div class="help-chip-list"><span>Natureza da Operação</span><span>Entrada/Saída</span><span>Tipo Nota</span><span>Tipo de Contrato</span></div>
       <h3>Tipos de venda retirados da pesquisa</h3><div class="help-chip-list"><span>AT Com Custo</span><span>AT Sem Custo</span></div>
@@ -502,7 +588,7 @@ const HELP_GROUPS = [
     `
   },
   {
-    id:'validation', title:'Integrações e aceite', icon:'check', kicker:'10 · Implementação',
+    id:'validation', title:'Integrações e aceite', icon:'check', kicker:'12 · Implementação',
     subtitle:'Origens, testes de aceite e decisões pendentes.',
     html:`
       <h2>Integrações previstas</h2><div class="help-table-wrap"><table class="help-table"><thead><tr><th>Módulo de origem</th><th>Informação consumida</th><th>Uso na NFS-e</th></tr></thead><tbody>
@@ -524,12 +610,12 @@ const HELP_GROUPS = [
     `
   },
   {
-    id:'demo', title:'Protótipo x produção', icon:'alert', kicker:'11 · Apresentação',
+    id:'demo', title:'Protótipo x produção', icon:'alert', kicker:'13 · Apresentação',
     subtitle:'O que já funciona e o que é demonstrativo.',
     html:`
       <h2>O que esta demonstração representa</h2><p>O protótipo foi construído para validar o fluxo funcional e a proposta visual com a equipe, incluindo a apresentação à Carla.</p>
-      <div class="help-two-cols"><div class="help-info-card"><h4>Disponível nesta versão</h4><ul class="help-bullets"><li>Busca, filtros e seleção de contratos.</li><li>Janela Gerar NFS-e em duas etapas.</li><li>Inclusão automática do item 9.</li><li>Exceção do Item 7.</li><li>Tributos Federais com Salvar local e Impostos em leitura.</li><li>Filtro FIN e edição de percentuais e valores por item.</li><li>Histórico, DANFSe e outras ações ilustrativas.</li><li>Manual funcional integrado à Ajuda.</li></ul></div><div class="help-info-card"><h4>Não integrado</h4><ul class="help-bullets"><li>Banco de dados e autenticação do eFinance.</li><li>Consultas reais aos módulos de origem.</li><li>Emissão, autorização e cancelamento fiscal.</li><li>APIs municipais/nacionais e TecnoSpeed.</li><li>Regras tributárias homologadas.</li><li>Envio de e-mails e documentos oficiais.</li><li>Persistência permanente dos tributos.</li></ul></div></div>
-      <h3>Roteiro sugerido para a apresentação</h3><ol class="help-numbered"><li>Apresentar os filtros, as novas colunas e as quatro somatórias.</li><li>Selecionar um contrato e abrir <b>Gerar NFS-e</b>.</li><li>Demonstrar a seleção 3 + 4 + 5 e a inclusão automática do 9.</li><li>Avançar até o formulário de emissão e conferir Emitente, códigos e Item NBS.</li><li>Na barra principal, abrir <b>Tributos Federais</b>.</li><li>Mostrar os combos, retenções e <b>Salvar</b>. Depois abrir <b>Impostos</b> e confirmar os mesmos valores salvos.</li><li>Voltar à listagem, selecionar o <b>Item 7</b> e mostrar o bloqueio quando a montagem está vazia.</li><li>Abrir <b>Ajuda</b> para revisar decisões aprovadas e pendências.</li></ol>
+      <div class="help-two-cols"><div class="help-info-card"><h4>Disponível nesta versão</h4><ul class="help-bullets"><li>Busca, filtros e seleção de contratos.</li><li>Janela Gerar NFS-e em duas etapas.</li><li>Inclusão automática do item 9.</li><li>Exceção do Item 7.</li><li>Tributos Federais com base automática dos itens e Impostos em leitura.</li><li>Log Geração Notas com rastreamento demonstrativo por lote e motivos de rejeição.</li><li>Filtro FIN e edição de percentuais e valores por item.</li><li>Histórico, DANFSe e outras ações ilustrativas.</li><li>Manual funcional integrado à Ajuda.</li></ul></div><div class="help-info-card"><h4>Não integrado</h4><ul class="help-bullets"><li>Banco de dados e autenticação do eFinance.</li><li>Consultas reais aos módulos de origem.</li><li>Emissão, autorização e cancelamento fiscal.</li><li>APIs municipais/nacionais e TecnoSpeed.</li><li>Regras tributárias homologadas.</li><li>Envio de e-mails e documentos oficiais.</li><li>Persistência permanente dos tributos.</li></ul></div></div>
+      <h3>Roteiro sugerido para a apresentação</h3><ol class="help-numbered"><li>Apresentar os filtros, as novas colunas e as quatro somatórias.</li><li>Selecionar um contrato e abrir <b>Gerar NFS-e</b>.</li><li>Demonstrar a seleção 3 + 4 + 5 e a inclusão automática do 9.</li><li>Avançar até o formulário de emissão e conferir Emitente, códigos e Item NBS.</li><li>Na barra principal, abrir <b>Tributos Federais</b> e conferir a base automática dos itens.</li><li>Mostrar os combos, retenções e <b>Salvar</b>. Depois abrir <b>Impostos</b> e confirmar os mesmos valores salvos.</li><li>Abrir <b>Log Geração Notas</b> para acompanhar os retornos dos lotes; demonstrar a simulação do botão Transmitir.</li><li>Voltar à listagem, selecionar o <b>Item 7</b> e mostrar o bloqueio quando a montagem está vazia.</li><li>Abrir <b>Ajuda</b> para revisar decisões aprovadas e pendências.</li></ol>
       <div class="help-notice help-warning"><b>Uso demonstrativo:</b> nomes, dados, valores, arquivos e processos desta interface são exemplos. Ações locais não significam que a operação foi executada no ambiente de produção.</div>
     `
   }
@@ -579,16 +665,55 @@ function simpleModal(){
 }
 function renderModal(){
   if(!state.modal){closeModal();return;}
-  root.innerHTML=state.modal==='generation'?generationModal():state.modal==='tax'?taxModal():state.modal==='impostos'?impostosModal():state.modal==='help'?helpModal():simpleModal();
+  root.innerHTML=state.modal==='generation'?generationModal():state.modal==='tax'?taxModal():state.modal==='impostos'?impostosModal():state.modal==='generation-logs'?generationLogsModal():state.modal==='help'?helpModal():simpleModal();
   const close=root.querySelector('.modal-close');if(close)close.focus({preventScroll:true});
 }
 function saveTaxes(){
   const t=taxForActive();
-  if(['base','pis','cofins','pisRet','cofinsRet','csllBase','csllRate','cpBase','cpRate','irBase','irRate','other'].some(k=>!Number.isFinite(t[k])||t[k]<0)){toast('Preencha valores válidos e não negativos.','error');return;}
-  const row=activeRow();state.taxes[row.id]={...t};closeModal();toast(`Tributos Federais salvos no protótipo para o contrato ${row.contract||row.code}.`);
+  if(['pis','cofins','pisRet','cofinsRet','csllRate','cpRate','irRate','other'].some(k=>!Number.isFinite(t[k])||t[k]<0)){toast('Preencha valores válidos e não negativos.','error');return;}
+  const row=activeRow();state.taxes[row.id]={...t};closeModal();toast(`Tributos Federais salvos no protótipo para o contrato ${row.contract||row.code}, usando a base automática dos itens (R$ ${money(getTaxBase(row))}).`);
 }
+
+function logPreparedGeneration(row){
+ const sequence=state.logBatchSequence++;
+ state.generationLogs.unshift({
+  id:'prep-'+sequence+'-'+row.id,lot:'DEMO-'+String(sequence).padStart(3,'0'),generatedAt:new Date().toLocaleString('pt-BR'),
+  status:'Preparada',recordId:row.id,client:row.client,contract:row.contract||row.code,
+  emitter:row.generationParameters?.emitter||state.genForm.emitter,items:[...(row.sentItems||[])],
+  returnMessage:'Itens preparados para envio. Aguardando transmissão demonstrativa.'
+ });
+ state.logPage=1;
+}
+function simulateBatchTransmission(){
+ const selected=rows.filter(r=>state.selected.has(r.id));
+ if(!selected.length){toast('Selecione um ou mais contratos para simular um lote. Nenhuma nota real será transmitida.','warning');return;}
+ const sequence=state.logBatchSequence++,lot='DEMO-'+String(sequence).padStart(3,'0'),timestamp=new Date().toLocaleString('pt-BR');
+ selected.forEach((r,i)=>{
+  const prepared=!!r.generatedItems?.length;
+  const status=!prepared?'Aguardando preparação':i%2===0?'Autorizada':'Rejeitada';
+  const message=!prepared?'Contrato ainda não preparado com itens. Utilize Gerar NFS-e antes de simular o envio.':
+   status==='Autorizada'?'NFS-e autorizada (simulação; nenhuma nota real foi enviada).':
+   'NFS-e rejeitada (simulação): código do serviço incompatível com o emitente (motivo fictício).';
+  const entry=state.generationLogs.find(l=>l.recordId===r.id&&l.status==='Preparada');
+  const attrs={lot,generatedAt:timestamp,status,recordId:r.id,client:r.client,contract:r.contract||r.code,
+   emitter:r.generationParameters?.emitter||'Não informado',items:[...(r.sentItems||[])],returnMessage:message};
+  if(entry)Object.assign(entry,attrs);
+  else state.generationLogs.unshift({id:'batch-'+sequence+'-'+r.id,...attrs});
+ });
+ state.logPage=1;
+ toast('Lote '+lot+' simulado com '+selected.length+' contrato(s). Consulte Log Geração Notas. Nenhum envio externo foi realizado.','warning');
+}
+
 function modalAction(action){
  if(action==='close'){closeModal();return;}
+ if(action.startsWith('logs-')){
+  const max=Math.max(1,Math.ceil(state.generationLogs.length/state.logPageSize));
+  if(action==='logs-first')state.logPage=1;
+  else if(action==='logs-prev')state.logPage=Math.max(1,state.logPage-1);
+  else if(action==='logs-next')state.logPage=Math.min(max,state.logPage+1);
+  else if(action==='logs-last')state.logPage=max;
+  renderModal();return;
+ }
  if(action==='tab-items'){state.step=1;renderModal();return;}
  if(action==='tab-data'){if(selectedItemIds().size){state.step=2;renderModal();}else toast('Selecione ao menos um item.','warning');return;}
  if(action==='next'){if(!selectedItemIds().size){toast('Selecione ao menos um item para continuar.','warning');return;}state.step=2;renderModal();return;}
@@ -599,6 +724,7 @@ function modalAction(action){
    const r=activeRow();r.sentItems=[...selectedItemIds()].sort((a,b)=>a-b).map(id=>String(id).padStart(2,'0'));
    r.generatedItems=itemCatalog.map(getItemValue).filter(i=>selectedItemIds().has(i.id)).map(i=>({id:i.id,pct:i.pct,value:i.value}));
    r.generationParameters={...state.genForm};
+   logPreparedGeneration(r);
    r.status='Nao Gerada';closeModal();renderTable();toast(`NFS-e preparada para demonstração: itens ${r.sentItems.join(', ')}. Nenhuma nota foi transmitida.`);return;
  }
  if(action==='save-redefine'){
@@ -624,7 +750,8 @@ function onGlobalAction(action,el){
     case 'generate':demoTarget(true);state.itemSelection=new Set([3,4,5]);state.step=1;openModal('generation');return;
     case 'tax':demoTarget(false);openModal('tax');return;
     case 'impostos':demoTarget(false);openModal('impostos');return;
-    case 'transmit':toast('Transmitir: ação demonstrativa, sem comunicação com a prefeitura.','warning');return;
+    case 'generation-logs':state.logPage=1;openModal('generation-logs');return;
+    case 'transmit':simulateBatchTransmission();return;
     case 'resend':toast('Reenvio de NFS-e e XML: simulado; nenhum e-mail foi enviado.','warning');return;
     case 'refresh':renderTable();toast('Consulta da listagem atualizada localmente.');return;
     case 'cancel':{

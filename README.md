@@ -34,6 +34,9 @@ A entrada da aplicação é `index.html`. O projeto utiliza `styles.css`, `app.j
 - Remoção do botão **Pré-visualizar DANFSe** da barra.
 - Filtro **FIN**, com as seis opções do print de referência, mantendo o filtro **Itens** para a regra especial do Item 7.
 - Botão **Impostos** ao lado de **Tributos Federais**, exibindo em leitura os valores salvos por contrato no formulário de tributos.
+- Botão **Log Geração Notas** entre Impostos e Imprimir, com acompanhamento de lotes simulados, estados de autorização/rejeição e respectivos retornos/motivos.
+- Remoção da coluna **E./S.** na listagem NFS-e.
+- **Tributos Federais** sem os campos editáveis de base de PIS/COFINS, CSLL, CP e IR: a base é calculada sobre o valor dos itens selecionados/preparados, e **Outras Retenções** fica à direita.
 - Manual interativo **Ajuda** e documentação de apoio atualizados.
 
 Os estados FIN e os dados da emissão são ilustrativos; nenhuma comunicação fiscal ocorre. O estado é mantido em memória e reinicia quando a página é recarregada.

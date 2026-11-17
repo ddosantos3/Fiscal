@@ -18,10 +18,11 @@
 6. [Gerar NFS-e](#generation)
 7. [Tributos Federais](#taxes)
 8. [Impostos](#impostos)
-9. [Totalizadores e rodapé](#totals)
-10. [O que foi removido](#removed)
-11. [Integrações e aceite](#validation)
-12. [Protótipo x produção](#demo)
+9. [Log Geração Notas](#generation-logs)
+10. [Totalizadores e rodapé](#totals)
+11. [O que foi removido](#removed)
+12. [Integrações e aceite](#validation)
+13. [Protótipo x produção](#demo)
 
 ---
 
@@ -94,7 +95,7 @@ Os comandos abaixo aparecem na ordem prevista no mockup aprovado, mantendo o pad
 | --- | --- | --- |
 | **Ver selecionados** | Alternar entre todos os registros encontrados e apenas os contratos marcados. | Filtra localmente. |
 | **Gerar NFS-e** | Iniciar a seleção de itens e a configuração dos dados de emissão da nota de serviço. | Abre duas etapas com dados de exemplo. |
-| **Transmitir** | Enviar documentos preparados à integração responsável pela autorização fiscal. | Mensagem simulada; não transmite. |
+| **Transmitir** | Enviar lotes de NFS-e à integração fiscal na implementação real. | Simula lote dos contratos selecionados e registra os retornos no Log Geração Notas. |
 | **DANFSe** | Acessar o documento auxiliar da Nota Fiscal de Serviço. | Abre documento ilustrativo. |
 | **Reenviar NFS-e e XML por e-mail** | Reenviar os documentos fiscais ao destinatário. | Somente demonstração; não envia e-mail. |
 | **Forçar Nova Consulta** | Atualizar a situação dos documentos junto à integração fiscal. | Atualiza a visualização local. |
@@ -106,10 +107,11 @@ Os comandos abaixo aparecem na ordem prevista no mockup aprovado, mantendo o pad
 | **Histórico** | Consultar movimentações e eventos do registro. | Exibe histórico ilustrativo. |
 | **Tributos Federais** | Abrir o cadastro de PIS/COFINS/CSLL, CP, IR e outras retenções. | Abre formulário com Salvar local. |
 | **Impostos** | Consultar os tributos federais salvos do contrato na tabela de impostos. | Consulta read-only, sem inventar registros de ICMS. |
+| **Log Geração Notas** | Consultar o andamento dos lotes e o retorno de autorização/rejeição de cada nota, com o motivo de rejeição. | Consulta local com exemplos de lote e resultados simulados. |
 | **Imprimir** | Imprimir os documentos disponíveis. | Aciona a impressão do navegador. |
 | **Ajuda** | Abrir este manual funcional da tela NFS-e. | Manual navegável e pesquisável. |
 
-**Ordem e posicionamento:** **Ver selecionados** vem antes de **Gerar NFS-e**; **Tributos Federais** e **Impostos** ficam após **Histórico**; **Imprimir** e **Ajuda** permanecem no fim da barra, com espaçamento uniforme.
+**Ordem e posicionamento:** **Ver selecionados** vem antes de **Gerar NFS-e**; **Tributos Federais**, **Impostos** e **Log Geração Notas** ficam após **Histórico**; **Imprimir** e **Ajuda** permanecem no fim da barra, com espaçamento uniforme.
 
 ---
 
@@ -186,7 +188,6 @@ As três colunas novas têm origens funcionais definidas. Para as colunas herdad
 | **Pedidos** | Pedidos associados à venda/contrato. | Vínculo com pedidos existentes. |
 | **Valor Venda** | Valor financeiro da venda. | Registro comercial da venda. |
 | **Itens Enviados p/ NFS-e** | Itens encaminhados à composição da NFS-e. | Controle de itens da emissão; persistência exata a confirmar. |
-| **E./S.** | Indicador de entrada/saída preservado da tela original. | Campo existente na listagem; origem a confirmar. |
 | **Data Término de Montagem** Nova | Data efetiva de conclusão da montagem, no formato **DD/MM/AAAA**, sem horário. | **Pós-Venda** — conclusão da montagem vinculada ao contrato. |
 | **Data Término Liberação Futura** Nova | Data de término da liberação futura, no formato **DD/MM/AAAA**, sem horário. | **Gerenciamento de Contratos Futuros** — campo **Término Lib.** do contrato. |
 | **Fin Processado** Nova | Check azul quando processado e triângulo de alerta quando pendente. Na finalização, o tooltip mostra data e hora. | **Comercial > Contratos Realizados** — situação do processamento financeiro. |
@@ -329,26 +330,25 @@ Combo para definir retenção. Exemplos de referência: **0 — Não Retidos** e
 
 | Grupo | Campos e comportamento |
 | --- | --- |
-| **PIS/COFINS** | Base de cálculo PIS/COFINS; alíquota e valor de PIS — Apuração Própria; alíquota e valor de COFINS — Apuração Própria. |
+| **PIS/COFINS** | Alíquotas e valores calculados sobre a base automática formada pelos itens, inclusive os valores editados. |
 | **Retenções de PIS/COFINS** | Alíquota e valor de PIS — Retido; alíquota e valor de COFINS — Retido; preenchimento vinculado ao tipo de retenção. |
-| **CSLL** | Base de cálculo, alíquota e valor, com exigência condicionada às regras de retenção aplicáveis. |
-| **CP — Contribuição Previdenciária** | Checkbox de habilitação, base de cálculo, alíquota e valor. |
-| **IR — Imposto de Renda** | Checkbox de habilitação, base de cálculo, alíquota e valor. |
-| **Outras Retenções** | Campo destinado ao valor de outras retenções. |
+| **CSLL** | Alíquota e valor calculados automaticamente sobre a mesma base de itens, quando a retenção estiver habilitada. |
+| **CP — Contribuição Previdenciária** | Checkbox de habilitação, alíquota e valor calculado sobre a base automática. |
+| **IR — Imposto de Renda** | Checkbox de habilitação, alíquota e valor calculado sobre a base automática. |
+| **Outras Retenções** | Campo de valor preservado, reposicionado no canto direito da janela. |
 
-### Exemplo ilustrativo do print aprovado
+### Base de cálculo automática a partir dos itens
 
-| Tributo | Base | Alíquota | Valor |
-| --- | --- | --- | --- |
-| PIS | R$ 1.000,00 | 0,65% | R$ 6,50 |
-| COFINS | R$ 1.000,00 | 3,00% | R$ 30,00 |
-| CSLL | R$ 1.000,00 | 1,00% | R$ 10,00 |
-| IR | R$ 1.000,00 | 1,50% | R$ 15,00 |
+Foram retirados os campos editáveis **Base de cálculo PIS/COFINS**, **CSLL - Base de Cálculo**, **CP - Base de Cálculo** e **IR - Base de Cálculo**. A nova base é a **soma dos valores dos itens preparados para a NFS-e**; antes da confirmação da emissão, a demonstração utiliza os itens atualmente selecionados (inclusive o item 9 automático).
+
+**Exemplo demonstrativo:** itens 3 = R$ 9,36; 4 = R$ 7,49; 5 = R$ 17,78; 9 = R$ 0,00. **Base = R$ 34,63**. PIS 0,65% = aproximadamente R$ 0,23; COFINS 3% = R$ 1,04. Quando um valor de item for alterado, a base acompanha o valor preparado/selecionado para o contrato.
+
+A base é informativa e não pode ser digitada; as alíquotas e demais configurações continuam editáveis. A regra exata de incidência, possíveis exclusões e deduções para cada tributo deve ser homologada com a prefeitura antes da implementação fiscal real.
 
 ### Salvar e validação
 
 * Manter apenas o botão **Salvar** no rodapé, com **X** no cabeçalho para fechar a janela.
-* Salvar os tributos associados ao registro/contrato correspondente.
+* Salvar alíquotas, retenções e outras configurações associadas ao contrato; bases e valores são calculados automaticamente a partir dos itens.
 * Aplicar obrigatoriedades, dependências entre campos e cálculos conforme as regras do **portal da prefeitura** adotado na integração.
 * Não apresentar opção **Fechar** no rodapé.
 
@@ -364,7 +364,7 @@ A tela **Impostos** é aberta pelo botão situado imediatamente à direita de **
 
 * **Sem salvamento:** mostrar aviso de ausência de tributos federais salvos, sem criar imposto fictício.
 * **Após Salvar:** exibir PIS/COFINS de apuração própria, retenções quando aplicáveis, CSLL, IR, CP e outras retenções, conforme os campos habilitados/preenchidos.
-* **Base, alíquota e valor:** o protótipo calcula os valores de referência como `base × alíquota / 100`; esses cálculos são apenas demonstrativos.
+* **Base, alíquota e valor:** a base é calculada pela soma dos itens gerados/selecionados do contrato; os valores exibidos seguem `base × alíquota / 100`, de forma demonstrativa.
 * **Demais campos da grade:** os que não derivam do formulário de Tributos Federais devem aparecer como **—**; não criar ICMS ou códigos tributários sem dados.
 * **Persistência:** local, em memória, vinculada ao contrato, até recarregar a página. A janela de consulta é somente leitura.
 
@@ -372,9 +372,30 @@ A tela **Impostos** é aberta pelo botão situado imediatamente à direita de **
 
 ---
 
+<a id="generation-logs"></a>
+
+## 9. Log Geração Notas
+
+O botão **Log Geração Notas** é exibido entre **Impostos** e **Imprimir**. A janela acompanha o andamento da geração em lotes e apresenta as colunas:
+
+| Coluna | Informação |
+| --- | --- |
+| **Status** | Estado do processo: Preparada, Aguardando preparação/resposta, Autorizada ou Rejeitada. |
+| **Cliente** | Nome do cliente do registro processado. |
+| **Contrato** | Número do contrato do registro. |
+| **Emitente** | Prestador de serviço selecionado para a emissão. |
+| **Itens Gerados** | Códigos dos itens incluídos na nota, inclusive o item 9 quando automático. |
+| **Retorno** | Confirmação de autorização ou mensagem detalhada da rejeição, incluindo seu motivo, quando houver. |
+
+A janela exibe **data de geração, identificação de lote e paginação**. Ao preparar uma NFS-e, o protótipo registra a etapa Preparada. Ao acionar **Transmitir** com um ou mais contratos selecionados, simula um lote e mostra os respectivos retornos. Os primeiros registros são exemplos fictícios de Autorizada, Rejeitada e Aguardando Resposta.
+
+**Atenção:** os resultados atuais, inclusive autorizações e motivos de rejeição, são **simulados**. Na implementação real, deverão ser consultados e persistidos os protocolos, erros e resultados retornados pela integração com a prefeitura, associados ao lote e à nota correspondente. O protótipo não transmite notas nem comprova autorização fiscal.
+
+---
+
 <a id="totals"></a>
 
-## 9. Totalizadores e rodapé
+## 10. Totalizadores e rodapé
 
 *O que soma cada indicador e como é calculado.*
 
@@ -411,7 +432,7 @@ Soma do campo Valor Venda dos registros abrangidos pela consulta, exibida em moe
 
 <a id="removed"></a>
 
-## 10. O que foi removido
+## 11. O que foi removido
 
 *Botões, combos e tipos de venda excluídos.*
 
@@ -427,7 +448,11 @@ Gerar Nota, Dados NF-e, Volumes, Mensagens, Gerar Devolução, Gerar Nota Avulsa
 
 ### Combos removidos
 
-Natureza da OperaçãoEntrada/SaídaTipo NotaTipo de Contrato
+Natureza da Operação, Entrada/Saída, Tipo Nota e Tipo de Contrato.
+
+### Coluna removida
+
+**E./S.** foi removida da tabela exclusiva de NFS-e.
 
 ### Tipos de venda retirados da pesquisa
 
@@ -439,7 +464,7 @@ AT Com CustoAT Sem Custo
 
 <a id="validation"></a>
 
-## 11. Integrações e aceite
+## 12. Integrações e aceite
 
 *Origens, testes de aceite e decisões pendentes.*
 
@@ -485,7 +510,7 @@ AT Com CustoAT Sem Custo
 
 <a id="demo"></a>
 
-## 12. Protótipo x produção
+## 13. Protótipo x produção
 
 *O que já funciona e o que é demonstrativo.*
 
@@ -499,7 +524,8 @@ O protótipo foi construído para validar o fluxo funcional e a proposta visual 
 * Janela Gerar NFS-e em duas etapas.
 * Inclusão automática do item 9.
 * Exceção do Item 7.
-* Tributos Federais com Salvar local e janela Impostos para consulta.
+* Tributos Federais com base calculada automaticamente pelos itens e janela Impostos para consulta.
+* Log Geração Notas com exemplos de autorização, rejeição e lote simulado.
 * Filtro FIN e edição de % Venda e Valor por item.
 * Histórico, DANFSe e outras ações ilustrativas.
 * Manual funcional integrado à Ajuda.
@@ -520,7 +546,8 @@ O protótipo foi construído para validar o fluxo funcional e a proposta visual 
 2. Selecionar um contrato e abrir **Gerar NFS-e**.
 3. Demonstrar a seleção 3 + 4 + 5 e a inclusão automática do 9.
 4. Avançar ao formulário de emissão e conferir os códigos (inclusive NBS com descrição).
-5. Na barra principal, preencher **Tributos Federais**, clicar **Salvar** e consultar os valores na janela **Impostos**.
+5. Na barra principal, preencher **Tributos Federais**, conferir a base automática, clicar **Salvar** e consultar os valores na janela **Impostos**.
+6. Preparar uma NFS-e e abrir **Log Geração Notas**; simular um lote pelo botão **Transmitir** para acompanhar status e retorno.
 6. Voltar à listagem, selecionar o **Item 7** e mostrar o bloqueio quando a montagem está vazia.
 7. Abrir **Ajuda** para revisar decisões aprovadas e pendências.
 

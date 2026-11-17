@@ -17,10 +17,15 @@ Este material descreve o comportamento implementado **somente na demonstração*
 | Dados da emissão | Emitente, IBS/CBS, Serviço, ISS, NBS e data devem estar preenchidos para confirmar. Não há grid de ambientes nem botão Tributos Federais nessa etapa. |
 | Ok | Prepara os itens e dados na memória do navegador. Não transmite documento. |
 | FIN | Combo com --Todos--, Aberto - Todos, Aberto - Não enviado, Aberto - Enviado sem fin, Fechado - Enviado com fin e Em substituição. O conjunto é fictício para demonstrar o filtro. |
-| Tributos Federais | Abre formulário de base, alíquotas, retenções, CP, IR, CSLL e outras retenções. |
-| Salvar Tributos Federais | Salva os valores **por contrato** na memória desta sessão; fechar sem salvar descarta a edição do modal. |
+| Tributos Federais | Abre formulário com as opções tributárias e alíquotas, sem campos editáveis de base. A base vem da soma dos valores dos itens gerados/selecionados do contrato. |
+| Salvar Tributos Federais | Salva as alíquotas e configurações **por contrato** nesta sessão; valores são calculados sobre a base automática dos itens. Fechar sem salvar descarta a edição do modal. |
 | Impostos | Abre tabela somente leitura com PIS/COFINS próprios e retidos, CSLL, IR, CP e outras retenções conforme os tributos federais salvos. Sem dados salvos, mostra aviso. |
 | Colunas não deriváveis dos tributos | Exibem “—” em Impostos; não são preenchidas com ICMS ou valores inventados. |
+| Outras Retenções | Campo reposicionado na terceira coluna (lado direito) da tela Tributos Federais. |
+| Coluna E./S. | Removida da listagem NFS-e, preservando o restante. |
+| Log Geração Notas | Botão entre Impostos e Imprimir: exibe Status, Cliente, Contrato, Emitente, Itens Gerados e Retorno. Exibe motivos de rejeição, identificação do lote e data de geração. |
+| Preparação de NFS-e | Registra no log local o estado Preparada, vinculando o contrato, emitente e os itens. |
+| Transmitir | Com contratos selecionados, **simula** um lote e atualiza os logs com autorizações/rejeições fictícias ou pendência de preparação. Sem transmissão real. |
 | Status | Mostra as 12 opções aprovadas e filtra os registros fictícios. |
 | Fin Processado | Exibe check/alerta e tooltip de data/hora de finalização do exemplo. |
 | Loja, busca e datas | Filtram os registros fictícios. |
@@ -38,7 +43,8 @@ Este material descreve o comportamento implementado **somente na demonstração*
 ## Limitações e validações pendentes
 
 - Os exemplos de emitente, IBS/CBS, ISS, serviço e NBS devem ser confrontados com os cadastros e o portal municipal antes de uso real.
-- A base, alíquotas e valores de tributos federais são demonstrativos; o cálculo exibido em Impostos é `base × alíquota / 100`.
+- A base é derivada do somatório dos valores dos itens selecionados/preparados; em Tributos Federais, os quatro campos de base (PIS/COFINS, CSLL, CP, IR) foram retirados. As alíquotas e os valores são demonstrativos; o cálculo exibido em Impostos é `base × alíquota / 100`.
+- Os logs e motivos de rejeição são inteiramente fictícios e não representam consultas ou retornos de emissão fiscal reais.
 - FIN é um filtro da demonstração e **não** deve ser derivado automaticamente do sinalizador **Fin Processado** na implementação.
 - As alterações de % Venda/Valor e de tributos estão em memória, por contrato, durante a sessão.
 - Não há APIs de prefeitura, NFSe Nacional, TecnoSpeed, armazenamento real, autenticação ou emissão/transmissão efetiva.
