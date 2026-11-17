@@ -129,7 +129,7 @@ A tela disponibiliza filtros necessários à identificação dos contratos e ite
 | --- | --- |
 | **Loja** | Restringe os registros à loja selecionada. |
 | **Status** | Filtra pela situação do documento fiscal; **--Todos--** remove esse filtro. O protótipo inicia com **Não Geradas**. |
-| **Itens** | Seleciona um item específico do contrato ou **--Todos--**; atualiza os somatórios monetários de Total Selecionado e Total a Emitir. Ao escolher o **Item 7**, ativa também a trava especial de montagem. |
+| **Itens** | Seleciona um item específico do contrato ou **--Todos--**; define o item do somatório monetário **Total a Emitir**. **Total Selecionado** permanece como contagem dos contratos marcados. Ao escolher o **Item 7**, ativa também a trava especial de montagem. |
 | **FIN** | Opções --Todos--; Aberto - Todos; Aberto - Não enviado; Aberto - Enviado sem fin; Fechado - Enviado com fin; Em substituição. Estados demonstrativos independentes do indicador Fin Processado. |
 | **Buscar por** | Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente. |
 | **Período** | Define a abrangência temporal da pesquisa. |
@@ -401,11 +401,18 @@ A janela exibe **data de geração, identificação de lote e paginação**. Ao 
 
 ## Totalizadores no rodapé
 
-O rodapé apresenta **cinco totalizadores**. Os dois primeiros mostram **somas monetárias dos itens (R$)**, o terceiro conserva a quantidade da busca e os dois últimos exibem somas da coluna **Valor Venda** para toda a consulta e somente para os contratos selecionados.
+O rodapé apresenta **cinco totalizadores**: (1) quantidade de contratos marcados, (2) soma monetária dos itens elegíveis para emissão, (3) quantidade da busca, (4) soma de Valor Venda de toda a consulta e (5) soma de Valor Venda apenas dos contratos marcados.
 
 #### Total Selecionado (Item)
 
-**Soma em reais** dos valores dos itens dos contratos **marcados na consulta atual**. Quando o combo **Itens** estiver em **03 - Coordenação**, soma somente o valor do item 3 dos contratos selecionados. No exemplo de um contrato com valor de R$ 9,36, retorna **9,36**, e não 1. Com **--Todos--**, soma os valores de todos os itens dos contratos marcados, sem duplicação.
+**Quantidade inteira de contratos/registros marcados nos checkboxes da listagem**, considerando apenas os contratos que atendem aos filtros atuais, inclusive quando distribuídos por várias páginas. Não é valor monetário e não conta quantos subitens (01 a 09) foram selecionados dentro de cada contrato.
+
+- **Exemplo aprovado:** combo **Itens = 03 - Coordenação**, quatro contratos marcados: exibir **4**, não R$ 29,20.
+- **Um contrato marcado:** exibir **1**, qualquer que seja o valor do item.
+- **Nenhum contrato marcado:** exibir **0**.
+- **Combo Itens = --Todos--:** continuar contando contratos marcados, sem multiplicar pelos itens de cada contrato.
+
+A alteração no valor de um item não modifica esse contador; marcar/desmarcar contratos ou aplicar filtros atualiza o número.
 
 #### Total a Emitir (Item)
 
@@ -426,21 +433,21 @@ Quantidade de itens retornados pelos filtros da pesquisa, considerando o conjunt
 - **Nenhum contrato marcado:** R$ 0,00.
 - **Somente o contrato de Daniel Ferreira Mendes marcado:** R$ 60.400,00, correspondente ao Valor Venda desse contrato na demonstração.
 - **Vários contratos marcados:** soma única dos valores de venda desses contratos, sem duplicar valores pela quantidade de itens.
-- **Combo Itens:** determina quais itens são somados em Total Selecionado (Item) e Total a Emitir (Item), mas **não rateia a coluna Valor Venda do contrato**. A escolha do Item 07 mantém as travas de seleção da montagem.
+- **Combo Itens:** determina quais itens são somados monetariamente em **Total a Emitir (Item)**, mas **Total Selecionado (Item)** conta contratos marcados, sem somar seus valores. O combo não rateia a coluna Valor Venda; a escolha do Item 07 mantém as travas de seleção da montagem.
 
 Na implementação real, a fonte do Valor Venda deve ser a mesma exibida na coluna da listagem, para garantir consistência entre linha, seleção e rodapé.
 
 ### Regras de consistência
 
-* Os dois primeiros totalizadores representam **valores monetários de itens**, não quantidades de registros ou checkboxes.
-* O combo **Itens** define a composição: 01 a 09 soma somente o respectivo item; **--Todos--** soma todos os itens, cada um apenas uma vez, inclusive a Reserva.
-* **Total Selecionado** considera contratos marcados que correspondem à consulta atual; **Total a Emitir** considera contratos Não Gerada retornados pelos filtros, selecionados ou não. Quando o **Item 07** estiver selecionado, o total a emitir exclui contratos sem **Data Término de Montagem**, conforme a trava de seleção existente.
-* Recalcular após filtros, seleção de contratos, troca do item e alteração do valor de qualquer item.
+* **Total Selecionado (Item)** é uma **contagem de registros marcados**; **Total a Emitir (Item)** permanece um **somatório monetário**.
+* O combo **Itens** define a composição do **Total a Emitir**: 01 a 09 soma o respectivo item; **--Todos--** soma todos, sem duplicar a Reserva. A contagem de selecionados depende somente dos contratos marcados no filtro.
+* **Total Selecionado** conta contratos marcados que correspondem à consulta atual; **Total a Emitir** soma os valores dos itens dos contratos Não Gerada retornados pelos filtros, selecionados ou não. Quando o **Item 07** estiver selecionado, o total a emitir exclui contratos sem **Data Término de Montagem**, conforme a trava de seleção existente.
+* Recalcular o contador após filtros e seleção/desmarcação de contratos. Recalcular os somatórios monetários após a mudança do item ou alteração de valores.
 * Os totais contemplam todos os registros filtrados carregados na aplicação, não só a página visível.
 * **Total (Valor Venda Selecionado)** considera apenas os contratos marcados e que correspondem à consulta atual, utilizando o Valor Venda uma vez por contrato.
 * Acumular centavos inteiros para preservar precisão monetária e impedir dupla contagem do Item 09.
 
-**Valores do protótipo:** os 16 contratos carregados apresentam valores demonstrativos individualizados do Item 03 que totalizam **R$ 121,68**; um contrato demonstra o valor unitário **R$ 9,36**. O número **416 na busca** permanece um indicador ilustrativo da referência visual, sem representar 416 contratos realmente carregados. Já o **Total (Valor Venda)** é calculado sobre os 16 registros existentes e começa em **R$ 3.262.669,79**, deixando de usar o valor fictício fixo de R$ 78.018.029,38. Os dois primeiros totalizadores somam somente os registros demonstrativos existentes. O backend deverá fornecer os valores de cada item por contrato e o conjunto completo, incluindo os resultados de outras páginas.
+**Valores do protótipo:** os 16 contratos carregados apresentam valores demonstrativos individualizados do Item 03 que totalizam **R$ 121,68**; um contrato demonstra o valor unitário **R$ 9,36**. O número **416 na busca** permanece um indicador ilustrativo da referência visual, sem representar 416 contratos realmente carregados. Já o **Total (Valor Venda)** é calculado sobre os 16 registros existentes e começa em **R$ 3.262.669,79**, deixando de usar o valor fictício fixo de R$ 78.018.029,38. O contador de selecionados e o valor a emitir utilizam somente os registros demonstrativos existentes. O backend deverá fornecer os valores de cada item por contrato e o conjunto completo, incluindo os resultados de outras páginas.
 
 ---
 
