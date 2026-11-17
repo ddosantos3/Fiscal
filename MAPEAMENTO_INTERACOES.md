@@ -5,6 +5,11 @@ Este material descreve o comportamento implementado **somente na demonstração*
 | Elemento | Comportamento demonstrativo |
 |---|---|
 | Ver selecionados | Filtra os contratos marcados. |
+| Total Selecionado (Item) | **Valor monetário** dos itens associados aos contratos marcados dentro da consulta atual. Respeita o combo **Itens** e edições realizadas nos valores dos itens. Um contrato com item 03 de R$ 9,36 retorna **9,36**. |
+| Total a Emitir (Item) | **Valor monetário** dos itens em todos os contratos **Não Gerada** da consulta atual, independentemente de estarem marcados. Em Item 03, os 16 contratos demonstrativos somam **R$ 121,68**. Com **--Todos--**, soma todos os itens; com 01–09, apenas o item escolhido. |
+| Cálculo dos totalizadores | Somar em centavos, por contrato e item, respeitando filtros e o conjunto filtrado além da página atual; evitar duplicação do Item 09. No Item 07, não incluir em Total a Emitir contratos com Data Término de Montagem vazia. |
+| Total (Valor Venda) | Soma real da coluna **Valor Venda** de todos os contratos retornados pelos filtros, mesmo em outras páginas. A amostra inicial de 16 contratos soma **R$ 3.262.669,79**; não é mais utilizado um total fixo. |
+| Dados demonstrativos de busca | O contador **416** ainda é ilustrativo; os totalizadores monetários utilizam os contratos carregados efetivamente no protótipo. |
 | Gerar NFS-e | Abre a etapa de itens e, após **Próximo**, o formulário de emissão. |
 | % Venda / Valor | Ambos podem ser editados individualmente no passo de seleção; o somatório atualizado considera os itens marcados. Um campo não recalcula o outro automaticamente. |
 | Itens 3, 4 e 5 | Quando selecionados simultaneamente, o item 9 é acrescentado automaticamente, sem duplicidade. Na janela, **09 - Reserva** fica marcado em azul como os demais, sem “(Auto)”; tentativas de desmarcá-lo enquanto 3/4/5 estão marcados são revertidas. |

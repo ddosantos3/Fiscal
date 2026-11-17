@@ -28,7 +28,11 @@ A entrada da aplicação é `index.html`. O projeto utiliza `styles.css`, `app.j
 
 ## Alterações aprovadas na apresentação
 
+- Cabeçalho do módulo identificado como **Fiscal — Nota Fiscal de Serviço Eletrônica**.
+
 - Edição independente de **% Venda** e **Valor** na primeira etapa de Gerar NFS-e, recalculando os somatórios da seleção.
+- **Total Selecionado (Item)** e **Total a Emitir (Item)** passam a somar os **valores em reais dos itens**, respeitando o combo **Itens**, os filtros da consulta e as edições. O Item 03 soma R$ 121,68 entre os 16 contratos do exemplo e R$ 9,36 para o contrato demo-3 selecionado.
+- **Total (Valor Venda)** soma os valores reais da coluna Valor Venda dos contratos retornados pelos filtros (R$ 3.262.669,79 na amostra inicial), sem usar o valor estático anterior.
 - A coluna **Itens Enviados p/ NFS-e** exibe **código e descrição completa**; o item **09 - Reserva** aparece marcado em azul, sem “(Auto)”, mantendo a regra de inclusão automática com 3/4/5.
 - Listagem de emitentes de referência e exemplos com código e descrição para IBS/CBS, Serviço NFS-e, ISS e NBS na segunda etapa.
 - Remoção da grade de ambientes e do atalho de Tributos Federais da segunda etapa. **Tributos Federais** permanece na barra superior.
