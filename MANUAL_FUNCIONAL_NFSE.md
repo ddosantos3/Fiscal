@@ -17,10 +17,11 @@
 5. [Regras de seleção](#selection)
 6. [Gerar NFS-e](#generation)
 7. [Tributos Federais](#taxes)
-8. [Totalizadores e rodapé](#totals)
-9. [O que foi removido](#removed)
-10. [Integrações e aceite](#validation)
-11. [Protótipo x produção](#demo)
+8. [Impostos](#impostos)
+9. [Totalizadores e rodapé](#totals)
+10. [O que foi removido](#removed)
+11. [Integrações e aceite](#validation)
+12. [Protótipo x produção](#demo)
 
 ---
 
@@ -97,7 +98,6 @@ Os comandos abaixo aparecem na ordem prevista no mockup aprovado, mantendo o pad
 | **DANFSe** | Acessar o documento auxiliar da Nota Fiscal de Serviço. | Abre documento ilustrativo. |
 | **Reenviar NFS-e e XML por e-mail** | Reenviar os documentos fiscais ao destinatário. | Somente demonstração; não envia e-mail. |
 | **Forçar Nova Consulta** | Atualizar a situação dos documentos junto à integração fiscal. | Atualiza a visualização local. |
-| **Pré-visualizar DANFSe** | Consultar o documento auxiliar antes de imprimir. | Abre prévia ilustrativa. |
 | **Cancelar NFS-e** | Solicitar cancelamento conforme regras do município ou ambiente nacional aplicável. | Altera estado local após confirmação. |
 | **Inutilizar Número** | Comando mantido no desenho, sujeito à confirmação de aplicabilidade para NFS-e. | Exibe aviso informativo. |
 | **Excluir** | Remover registros quando a situação e as permissões permitirem. | Remove apenas da sessão local. |
@@ -105,10 +105,11 @@ Os comandos abaixo aparecem na ordem prevista no mockup aprovado, mantendo o pad
 | **Redefinir Valor da NFS-e** | Redefinir valor usado no fluxo, observando regras de negócio existentes. | Atualiza o valor em memória. |
 | **Histórico** | Consultar movimentações e eventos do registro. | Exibe histórico ilustrativo. |
 | **Tributos Federais** | Abrir o cadastro de PIS/COFINS/CSLL, CP, IR e outras retenções. | Abre formulário com Salvar local. |
+| **Impostos** | Consultar os tributos federais salvos do contrato na tabela de impostos. | Consulta read-only, sem inventar registros de ICMS. |
 | **Imprimir** | Imprimir os documentos disponíveis. | Aciona a impressão do navegador. |
 | **Ajuda** | Abrir este manual funcional da tela NFS-e. | Manual navegável e pesquisável. |
 
-**Ordem e posicionamento:** **Ver selecionados** vem antes de **Gerar NFS-e**; **Tributos Federais** fica após **Histórico**; **Imprimir** e **Ajuda** permanecem no fim da barra, com espaçamento uniforme.
+**Ordem e posicionamento:** **Ver selecionados** vem antes de **Gerar NFS-e**; **Tributos Federais** e **Impostos** ficam após **Histórico**; **Imprimir** e **Ajuda** permanecem no fim da barra, com espaçamento uniforme.
 
 ---
 
@@ -127,6 +128,7 @@ A tela disponibiliza filtros necessários à identificação dos contratos e ite
 | **Loja** | Restringe os registros à loja selecionada. |
 | **Status** | Filtra pela situação do documento fiscal; **--Todos--** remove esse filtro. O protótipo inicia com **Não Geradas**. |
 | **Itens** | Seleciona um item específico do contrato ou todos; ao escolher o **Item 7** ativa a trava especial de montagem. |
+| **FIN** | Opções --Todos--; Aberto - Todos; Aberto - Não enviado; Aberto - Enviado sem fin; Fechado - Enviado com fin; Em substituição. Estados demonstrativos independentes do indicador Fin Processado. |
 | **Buscar por** | Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente. |
 | **Período** | Define a abrangência temporal da pesquisa. |
 | **Filtrar Por** | Indica a data usada como referência da consulta; o protótipo oferece Data Venda, Data Término de Montagem e Data Término Liberação Futura. |
@@ -266,7 +268,7 @@ O botão **Gerar NFS-e** fica imediatamente após **Ver selecionados**. A janela
 
 ### Selecionar itens
 
-Apresenta a relação de itens do contrato com colunas **Itens**, **Fornecedor**, **% Venda** e **Valor**. Permite selecionar ou desmarcar os itens pertinentes, inclusive a regra automática do item 9.
+Apresenta a relação de itens do contrato com colunas **Itens**, **Fornecedor**, **% Venda** e **Valor**. Permite selecionar ou desmarcar os itens pertinentes, editar individualmente **% Venda** e **Valor** e aplicar a regra automática do item 9. No protótipo, cada valor digitado atualiza o somatório correspondente, mas mudar o percentual não altera automaticamente o valor monetário (essa relação depende da regra real de negócio). Os valores editados são mantidos por contrato durante a sessão.
 
 **Rodapé da etapa:** **% Selecionado** e **Total selec.** calculados com base nos itens marcados. **Próximo** avança para os dados de emissão; **Fechar** encerra a janela.
 
@@ -290,20 +292,18 @@ Após **Próximo**, exibir os dados necessários à preparação da nota, confor
 
 | Campo | Finalidade |
 | --- | --- |
-| Emitente | Selecionar o prestador/loja responsável pela emissão. |
+| Emitente | Selecionar o prestador/loja da lista da tela original (por exemplo, LB SERVICOS DE MONTAGENS). |
 | Dt. Emissão | Informar data da emissão. |
-| IBS/CBS | Selecionar configuração relacionada aos novos tributos, conforme integração. |
-| Cód. Serviço NFS-e | Informar classificação municipal do serviço. |
-| Tipo Trib. ISS | Selecionar tratamento tributário do ISS. |
-| Item NBS | Informar classificação NBS do serviço. |
+| IBS/CBS | Selecionar **TESTE001 - Teste - Simulado** no exemplo demonstrativo. |
+| Cód. Serviço NFS-e | **140601 - Instalação e montagem de aparelhos, máquinas e equipamentos**. |
+| Tipo Trib. ISS | **01 - Tributável dentro do município**. |
+| Item NBS | **101040000 - Serviços de montagem e de edificação de construções pré-fabricadas**. |
 | Informação Adicional | Texto adicional apresentado no documento, quando aplicável. |
 | Informação p/ o fisco | Observações destinadas ao fisco, quando aplicável. |
-| Opção / Ambiente | Seleção do ambiente/forma conforme configuração exibida na tela. |
-| Total à Vista / Total a Prazo | Valores associados à opção/ambiente apresentado. |
 
-**Botões:** **Tributos Federais** abre o formulário fiscal; **Ok** confirma a preparação; **Fechar** encerra a janela.
+**Botões:** **Ok** confirma a preparação simulada; **Fechar** encerra a janela. O botão **Tributos Federais** permanece apenas na barra principal. Foram removidos da segunda etapa os controles de ambientes e o combo de itens.
 
-**No protótipo:** Emitente, NBS e ambiente são validados antes da confirmação. **Ok não transmite** documentos; o botão Transmitir da tela principal representa a etapa própria de transmissão.
+**No protótipo:** Emitente, IBS/CBS, Cód. Serviço NFS-e, Tipo Trib. ISS, NBS e data são validados antes da confirmação. **Ok não transmite** documentos; o botão Transmitir da tela principal representa a etapa própria de transmissão.
 
 ---
 
@@ -356,9 +356,25 @@ Combo para definir retenção. Exemplos de referência: **0 — Não Retidos** e
 
 ---
 
+<a id="impostos"></a>
+
+## 8. Impostos
+
+A tela **Impostos** é aberta pelo botão situado imediatamente à direita de **Tributos Federais** na barra principal. Ela mostra, para o contrato ativo, os dados salvos na janela de Tributos Federais.
+
+* **Sem salvamento:** mostrar aviso de ausência de tributos federais salvos, sem criar imposto fictício.
+* **Após Salvar:** exibir PIS/COFINS de apuração própria, retenções quando aplicáveis, CSLL, IR, CP e outras retenções, conforme os campos habilitados/preenchidos.
+* **Base, alíquota e valor:** o protótipo calcula os valores de referência como `base × alíquota / 100`; esses cálculos são apenas demonstrativos.
+* **Demais campos da grade:** os que não derivam do formulário de Tributos Federais devem aparecer como **—**; não criar ICMS ou códigos tributários sem dados.
+* **Persistência:** local, em memória, vinculada ao contrato, até recarregar a página. A janela de consulta é somente leitura.
+
+**Validação futura:** a ligação com os tributos fiscais efetivos e o tratamento tributário do município exigem homologação própria.
+
+---
+
 <a id="totals"></a>
 
-## 8. Totalizadores e rodapé
+## 9. Totalizadores e rodapé
 
 *O que soma cada indicador e como é calculado.*
 
@@ -395,7 +411,7 @@ Soma do campo Valor Venda dos registros abrangidos pela consulta, exibida em moe
 
 <a id="removed"></a>
 
-## 9. O que foi removido
+## 10. O que foi removido
 
 *Botões, combos e tipos de venda excluídos.*
 
@@ -405,7 +421,7 @@ A interface deve ficar exclusiva para Nota Fiscal de Serviço, sem misturar aç�
 
 ### Botões removidos
 
-Gerar NotaDados NF-eVolumesMensagensGerar DevoluçãoGerar Nota AvulsaLogs Rece. FederalCC-eAplicar DescontoAlt. Cliente
+Gerar Nota, Dados NF-e, Volumes, Mensagens, Gerar Devolução, Gerar Nota Avulsa, Logs Rece. Federal, CC-e, Aplicar Desconto, Alt. Cliente e Pré-visualizar DANFSe.
 
 **Observação:** o comando antigo **Gerar Nota** foi substituído no novo fluxo pelo botão específico **Gerar NFS-e**.
 
@@ -423,7 +439,7 @@ AT Com CustoAT Sem Custo
 
 <a id="validation"></a>
 
-## 10. Integrações e aceite
+## 11. Integrações e aceite
 
 *Origens, testes de aceite e decisões pendentes.*
 
@@ -447,8 +463,11 @@ AT Com CustoAT Sem Custo
 7. Combo diferente de 7: a trava especial de montagem não é aplicada.
 8. Seleção 3 + 4 + 5 compõe 3 + 4 + 5 + 9 sem duplicidade.
 9. Gerar NFS-e apresenta seleção de itens seguida dos dados da emissão.
-10. Tributos Federais abre com campos e dependências exigidos pelo portal da prefeitura.
-11. Salvar Tributos Federais mantém os dados vinculados ao registro.
+10. A primeira etapa de emissão permite editar % Venda e Valor, sem perder a seleção automática.
+11. A segunda etapa não exibe ambientes nem o botão Tributos Federais e apresenta os combos com códigos e descrições.
+12. O combo FIN apresenta as seis opções definidas.
+13. Tributos Federais apresenta os campos de referência da prefeitura e salva no contrato.
+14. Impostos mostra os valores salvos do contrato, sem dados fiscais inventados.
 12. Totalizadores consistentes com filtros, paginação e itens selecionados.
 13. Permissões e regras fiscais preexistentes preservadas.
 
@@ -466,7 +485,7 @@ AT Com CustoAT Sem Custo
 
 <a id="demo"></a>
 
-## 11. Protótipo x produção
+## 12. Protótipo x produção
 
 *O que já funciona e o que é demonstrativo.*
 
@@ -480,8 +499,9 @@ O protótipo foi construído para validar o fluxo funcional e a proposta visual 
 * Janela Gerar NFS-e em duas etapas.
 * Inclusão automática do item 9.
 * Exceção do Item 7.
-* Tributos Federais com Salvar local.
-* Histórico, prévias e outras ações ilustrativas.
+* Tributos Federais com Salvar local e janela Impostos para consulta.
+* Filtro FIN e edição de % Venda e Valor por item.
+* Histórico, DANFSe e outras ações ilustrativas.
 * Manual funcional integrado à Ajuda.
 
 #### Não integrado
@@ -499,8 +519,8 @@ O protótipo foi construído para validar o fluxo funcional e a proposta visual 
 1. Apresentar os filtros, as novas colunas e as quatro somatórias.
 2. Selecionar um contrato e abrir **Gerar NFS-e**.
 3. Demonstrar a seleção 3 + 4 + 5 e a inclusão automática do 9.
-4. Avançar até o formulário de emissão e abrir **Tributos Federais**.
-5. Mostrar os combos, retenções e **Salvar**.
+4. Avançar ao formulário de emissão e conferir os códigos (inclusive NBS com descrição).
+5. Na barra principal, preencher **Tributos Federais**, clicar **Salvar** e consultar os valores na janela **Impostos**.
 6. Voltar à listagem, selecionar o **Item 7** e mostrar o bloqueio quando a montagem está vazia.
 7. Abrir **Ajuda** para revisar decisões aprovadas e pendências.
 
