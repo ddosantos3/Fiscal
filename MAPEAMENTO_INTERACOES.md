@@ -7,7 +7,8 @@ Este material descreve o comportamento implementado **somente na demonstração*
 | Ver selecionados | Filtra os contratos marcados. |
 | Gerar NFS-e | Abre a etapa de itens e, após **Próximo**, o formulário de emissão. |
 | % Venda / Valor | Ambos podem ser editados individualmente no passo de seleção; o somatório atualizado considera os itens marcados. Um campo não recalcula o outro automaticamente. |
-| Itens 3, 4 e 5 | Quando selecionados simultaneamente, o item 9 é acrescentado automaticamente, sem duplicidade. |
+| Itens 3, 4 e 5 | Quando selecionados simultaneamente, o item 9 é acrescentado automaticamente, sem duplicidade. Na janela, **09 - Reserva** fica marcado em azul como os demais, sem “(Auto)”; tentativas de desmarcá-lo enquanto 3/4/5 estão marcados são revertidas. |
+| Itens Enviados p/ NFS-e | A listagem mostra **código + descrição** de cada item preparado, utilizando o catálogo de itens da etapa de geração; o conteúdo completo aparece na célula e no tooltip. Os códigos persistem no estado interno da demonstração. |
 | Combo Itens = 7 | Bloqueia a marcação do contrato se Data Término de Montagem estiver vazia. A trava não afeta outros itens. |
 | Emitente | Lista de prestadores exibidos nos prints da tela original, inclusive LB SERVICOS DE MONTAGENS. |
 | IBS/CBS | Código demonstrativo `TESTE001 - Teste - Simulado`. |

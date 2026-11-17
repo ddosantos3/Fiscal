@@ -187,7 +187,7 @@ As três colunas novas têm origens funcionais definidas. Para as colunas herdad
 | **Data Venda** | Data de realização da venda. | Registro de venda existente. |
 | **Pedidos** | Pedidos associados à venda/contrato. | Vínculo com pedidos existentes. |
 | **Valor Venda** | Valor financeiro da venda. | Registro comercial da venda. |
-| **Itens Enviados p/ NFS-e** | Itens encaminhados à composição da NFS-e. | Controle de itens da emissão; persistência exata a confirmar. |
+| **Itens Enviados p/ NFS-e** | Código e descrição completa de cada item preparado para a NFS-e, por exemplo **03 - Coordenação**, **04 - Supervisão de Montagem**, **05 - Instalação/Assistência** e **09 - Reserva**. Exibição em linhas na mesma célula e texto integral ao passar o mouse. | Códigos dos itens preparados por contrato, com descrições obtidas do mesmo catálogo da etapa **Gerar NFS-e**; persistência definitiva a confirmar. |
 | **Data Término de Montagem** Nova | Data efetiva de conclusão da montagem, no formato **DD/MM/AAAA**, sem horário. | **Pós-Venda** — conclusão da montagem vinculada ao contrato. |
 | **Data Término Liberação Futura** Nova | Data de término da liberação futura, no formato **DD/MM/AAAA**, sem horário. | **Gerenciamento de Contratos Futuros** — campo **Término Lib.** do contrato. |
 | **Fin Processado** Nova | Check azul quando processado e triângulo de alerta quando pendente. Na finalização, o tooltip mostra data e hora. | **Comercial > Contratos Realizados** — situação do processamento financeiro. |
@@ -235,7 +235,7 @@ R3
 
 ### Inclusão automática do Item 9
 
-Quando os **itens 3, 4 e 5** forem selecionados conjuntamente, a tela de Itens Selecionados deve apresentar também o **item 9 — Reserva**, sem duplicações.
+Quando os **itens 3, 4 e 5** forem selecionados conjuntamente, a tela de Itens Selecionados deve apresentar também o **item 9 — Reserva**, sem duplicações. **O item 09 aparece marcado na mesma cor azul dos demais itens, sem o sufixo “(Auto)”**. Enquanto 3, 4 e 5 estiverem selecionados, não é possível remover o item 9 dessa composição: uma tentativa de desmarcá-lo será revertida.
 
 Selecionados**03 · 04 · 05**
 
@@ -243,7 +243,7 @@ Selecionados**03 · 04 · 05**
 
 Resultado esperado**03 · 04 · 05 · 09**
 
-Os itens continuam identificados e vinculados ao contrato de origem, para conferência antes da emissão.
+Os itens continuam identificados e vinculados ao contrato de origem, para conferência antes da emissão. Após preparar a NFS-e, a coluna **Itens Enviados p/ NFS-e** mostrará o código e a descrição de cada item, em vez de somente os códigos.
 
 Comportamento em seleção parcial ou ao desmarcar itens: **precisa ser validado**. Neste protótipo, ao deixar de selecionar 3, 4 ou 5, a inclusão automática do item 9 deixa de ser aplicada.
 
@@ -283,7 +283,7 @@ Apresenta a relação de itens do contrato com colunas **Itens**, **Fornecedor**
 | 06 | Layout/Medição/Conferência |
 | 07 | Contratado - Franquia |
 | 08 | Financeira |
-| 09 | Reserva (inclusão automática na combinação 3, 4 e 5) |
+| 09 | Reserva |
 
 **Etapa 2**
 

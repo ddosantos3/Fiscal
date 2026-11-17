@@ -72,6 +72,12 @@ const itemCatalog=[
   {id:8,name:'Financeira',provider:'Kasabella',pct:0,value:0},
   {id:9,name:'Reserva',provider:'MA FORNECEDOR 5',pct:0,value:0},
 ];
+// Resolve a descrição na mesma fonte usada pela seleção de itens; mantém os códigos como dados internos.
+function describeSentItem(code){
+  const id=Number.parseInt(String(code),10);
+  const item=itemCatalog.find(entry=>entry.id===id);
+  return item?`${String(item.id).padStart(2,'0')} - ${item.name}`:String(code);
+}
 const taxDefaults={situation:'01',retention:'3',pis:0.65,cofins:3,pisRet:0.65,cofinsRet:3,csllRate:1,cp:false,cpRate:0,ir:true,irRate:1.5,other:0};
 const state={selected:new Set(),page:1,pageSize:16,selectedOnly:false,modal:null,taxReturn:null,taxDraft:null,generationLogs:[],logPage:1,logPageSize:10,logBatchSequence:2,step:1,activeRow:null,itemSelection:new Set([3,4,5]),itemEdits:{},taxes:{},genForm:{emitter:'LB SERVICOS DE MONTAGENS',date:today,ibscbs:'TESTE001 - Teste - Simulado',service:'140601 - Instalação e montagem de aparelhos, máquinas e equipamentos',iss:'01 - Tributável dentro do município',nbs:'101040000 - Serviços de montagem e de edificação de construções pré-fabricadas',extra:'(1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Documento emitido por ME ou EPP optante pelo Simples Nacional;',fisco:'',env:true},search:'',searchType:'client',searchStart:'',searchEnd:'',searchField:'saleDate',filterItem:'',filterStore:'',filterStatus:'Nao Gerada',filterFin:'',period:'3'};
 // Histórico ilustrativo: dados inventados exclusivamente para a demonstração, sem vínculo com prefeitura.
@@ -122,9 +128,11 @@ function renderTable(){
   $('records-body').innerHTML=segment.map(r=>{
     const locked=isRowLocked(r),sel=state.selected.has(r.id);
     const tooltip=r.fin?`Data Fin: ${r.finDate}`:'Financeiro pendente de processamento';
+    const itemLabels=(r.sentItems||[]).map(describeSentItem);
+    const itemLabelsHtml=itemLabels.map(value=>`<span class="sent-item-label">${escapeHtml(value)}</span>`).join('');
     return `<tr class="${sel?'is-selected ':''}${locked?'is-locked':''}" data-row-id="${r.id}">
       <td><input type="checkbox" data-select-row="${r.id}" aria-label="Selecionar contrato ${escapeHtml(r.contract||r.code)}" ${sel?'checked':''} ${locked?'disabled title="Item 7: montagem não concluída"':''} /></td>
-      <td>${r.emp}</td><td>${r.store}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.client)}</td><td>${escapeHtml(r.saleType)}</td><td>${escapeHtml(r.contract)}</td><td>${r.status==='Nao Gerada'?'Não Gerada':escapeHtml(r.status)}</td><td>${r.saleDate}</td><td>${escapeHtml(r.orders)}</td><td class="money">${money(r.value)}</td><td>${escapeHtml(r.sentItems.join(', '))}</td><td>${r.montage||'—'}</td><td>${r.future||'—'}</td>
+      <td>${r.emp}</td><td>${r.store}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.client)}</td><td>${escapeHtml(r.saleType)}</td><td>${escapeHtml(r.contract)}</td><td>${r.status==='Nao Gerada'?'Não Gerada':escapeHtml(r.status)}</td><td>${r.saleDate}</td><td>${escapeHtml(r.orders)}</td><td class="money">${money(r.value)}</td><td class="sent-items-column" title="${escapeHtml(itemLabels.join(' | '))}">${itemLabelsHtml}</td><td>${r.montage||'—'}</td><td>${r.future||'—'}</td>
       <td><button class="status-mark ${r.fin?'':'warning'}" type="button" aria-label="${escapeHtml(tooltip)}" title="${escapeHtml(tooltip)}" data-action="fin-info" data-record="${r.id}">${icon(r.fin?'check':'alert',20)}</button></td>
     </tr>`;
   }).join('');
@@ -207,9 +215,9 @@ function generationBody(){
   const pct=values.reduce((s,i)=>s+i.pct,0),total=values.reduce((s,i)=>s+i.value,0);
   const tbody=itemCatalog.map(base=>{
     const i=getItemValue(base),isAuto=i.id===9&&autoItem9();
-    return `<tr class="${ids.has(i.id)?'':'muted'} ${isAuto?'is-auto':''}">
-     <td><input type="checkbox" data-gen-item="${i.id}" aria-label="Selecionar item ${i.id}" ${ids.has(i.id)?'checked':''} ${isAuto?'disabled title="Incluído automaticamente"':''}></td>
-     <td>${String(i.id).padStart(2,'0')} - ${escapeHtml(i.name)}${isAuto?' <span class="auto-indicator">(Auto)</span>':''}</td>
+    return `<tr class="${ids.has(i.id)?'':'muted'}">
+     <td><input type="checkbox" data-gen-item="${i.id}" aria-label="Selecionar item ${i.id}" ${ids.has(i.id)?'checked':''} ${isAuto?'title="Selecionado automaticamente pela combinação dos itens 3, 4 e 5"':''}></td>
+     <td>${String(i.id).padStart(2,'0')} - ${escapeHtml(i.name)}</td>
      <td>${escapeHtml(i.provider)}</td>
      <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="pct" aria-label="Percentual de venda do item ${i.id}" value="${decimal(i.pct,6)}"></td>
      <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="value" aria-label="Valor do item ${i.id}" value="${money(i.value)}"></td>
@@ -454,7 +462,7 @@ const HELP_GROUPS = [
         <tr><td><b>Data Venda</b></td><td>Data de realização da venda.</td><td>Registro de venda existente.</td></tr>
         <tr><td><b>Pedidos</b></td><td>Pedidos associados à venda/contrato.</td><td>Vínculo com pedidos existentes.</td></tr>
         <tr><td><b>Valor Venda</b></td><td>Valor financeiro da venda.</td><td>Registro comercial da venda.</td></tr>
-        <tr><td><b>Itens Enviados p/ NFS-e</b></td><td>Itens encaminhados à composição da NFS-e.</td><td>Controle de itens da emissão; persistência exata a confirmar.</td></tr>
+        <tr><td><b>Itens Enviados p/ NFS-e</b></td><td>Exibe <b>código e descrição completa</b> de cada item encaminhado, por exemplo <b>03 - Coordenação</b>, <b>04 - Supervisão de Montagem</b>, <b>05 - Instalação/Assistência</b> e <b>09 - Reserva</b>. Os itens são apresentados em linhas dentro da célula, com texto completo no tooltip.</td><td>Códigos dos itens preparados para a NFS-e associados ao contrato; as descrições vêm do mesmo catálogo de itens da etapa <b>Gerar NFS-e</b>. O vínculo técnico em produção deve ser confirmado.</td></tr>
                 <tr class="help-accent-row"><td><b>Data Término de Montagem</b> <span class="help-label-new">Nova</span></td><td>Data efetiva de conclusão da montagem, no formato <b>DD/MM/AAAA</b>, sem horário.</td><td><b>Pós-Venda</b> — conclusão da montagem vinculada ao contrato.</td></tr>
         <tr class="help-accent-row"><td><b>Data Término Liberação Futura</b> <span class="help-label-new">Nova</span></td><td>Data de término da liberação futura, no formato <b>DD/MM/AAAA</b>, sem horário.</td><td><b>Gerenciamento de Contratos Futuros</b> — campo <b>Término Lib.</b> do contrato.</td></tr>
         <tr class="help-accent-row"><td><b>Fin Processado</b> <span class="help-label-new">Nova</span></td><td>Check azul quando processado e triângulo de alerta quando pendente. Na finalização, o tooltip mostra data e hora.</td><td><b>Comercial &gt; Contratos Realizados</b> — situação do processamento financeiro.</td></tr>
@@ -477,7 +485,7 @@ const HELP_GROUPS = [
       </div></div>
       <div class="help-rule-block"><span class="help-rule-num">R3</span><div><h3>Inclusão automática do Item 9</h3><p>Quando os <b>itens 3, 4 e 5</b> forem selecionados conjuntamente, a tela de Itens Selecionados deve apresentar também o <b>item 9 — Reserva</b>, sem duplicações.</p>
       <div class="help-selection-demo"><div><span>Selecionados</span><strong>03 · 04 · 05</strong></div><span class="help-selection-arrow">→</span><div><span>Resultado esperado</span><strong>03 · 04 · 05 · 09</strong></div></div>
-      <p>Os itens continuam identificados e vinculados ao contrato de origem, para conferência antes da emissão.</p><p class="help-small">Comportamento em seleção parcial ou ao desmarcar itens: <b>precisa ser validado</b>. Neste protótipo, ao deixar de selecionar 3, 4 ou 5, a inclusão automática do item 9 deixa de ser aplicada.</p>
+      <p>O item <b>09 - Reserva</b> aparece <b>marcado em azul como os demais</b>, sem o sufixo “(Auto)”. Enquanto a combinação 3 + 4 + 5 estiver selecionada, a tentativa de desmarcar o 9 será revertida para preservar a inclusão automática. Após a preparação, a listagem apresenta código e descrição dos itens enviados.</p><p class="help-small">Comportamento em seleção parcial ou ao desmarcar itens: <b>precisa ser validado</b>. Neste protótipo, ao deixar de selecionar 3, 4 ou 5, a inclusão automática do item 9 deixa de ser aplicada.</p>
       </div></div>
       <div class="help-rule-block"><span class="help-rule-num">R4</span><div><h3>Seleção independente da emissão</h3><p>Remover travas da seleção <b>não</b> significa dispensar validações fiscais, permissões, situação do documento ou controle contra emissão duplicada.</p></div></div>
     `
@@ -487,9 +495,9 @@ const HELP_GROUPS = [
     subtitle:'As duas etapas de Gerar Nota Serviço.',
     html:`
       <h2>Fluxo do botão Gerar NFS-e</h2><p>O botão <b>Gerar NFS-e</b> fica imediatamente após <b>Ver selecionados</b>. A janela segue as duas telas da funcionalidade Gerar Nota Serviço já utilizadas no sistema.</p>
-      <div class="help-step"><b>Etapa 1</b><div><h3>Selecionar itens</h3><p>Apresenta a relação de itens do contrato com colunas <b>Itens</b>, <b>Fornecedor</b>, <b>% Venda</b> e <b>Valor</b>. Permite selecionar ou desmarcar itens, editar <b>% Venda</b> e <b>Valor</b> individualmente e aplicar a inclusão automática do item 9. Os dois valores são independentes (a alteração de um não recalcula o outro sem regra de negócio aprovada).</p><p><b>Rodapé da etapa:</b> <b>% Selecionado</b> e <b>Total selec.</b> calculados com base nos itens marcados. <b>Próximo</b> avança para os dados de emissão; <b>Fechar</b> encerra a janela.</p></div></div>
+      <div class="help-step"><b>Etapa 1</b><div><h3>Selecionar itens</h3><p>Apresenta a relação de itens do contrato com colunas <b>Itens</b>, <b>Fornecedor</b>, <b>% Venda</b> e <b>Valor</b>. O item 09 aparece marcado na mesma cor dos demais, sem texto “(Auto)”, quando incluído pela combinação 3 + 4 + 5. Permite selecionar ou desmarcar itens, editar <b>% Venda</b> e <b>Valor</b> individualmente e aplicar a inclusão automática do item 9. Os dois valores são independentes (a alteração de um não recalcula o outro sem regra de negócio aprovada).</p><p><b>Rodapé da etapa:</b> <b>% Selecionado</b> e <b>Total selec.</b> calculados com base nos itens marcados. <b>Próximo</b> avança para os dados de emissão; <b>Fechar</b> encerra a janela.</p></div></div>
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Item</th><th>Descrição</th></tr></thead><tbody>
-        <tr><td>01</td><td>Produto</td></tr><tr><td>02</td><td>Transporte/Armazenamento</td></tr><tr><td>03</td><td>Coordenação</td></tr><tr><td>04</td><td>Supervisão de Montagem</td></tr><tr><td>05</td><td>Instalação/Assistência</td></tr><tr><td>06</td><td>Layout/Medição/Conferência</td></tr><tr><td>07</td><td>Contratado - Franquia</td></tr><tr><td>08</td><td>Financeira</td></tr><tr><td>09</td><td>Reserva (inclusão automática na combinação 3, 4 e 5)</td></tr>
+        <tr><td>01</td><td>Produto</td></tr><tr><td>02</td><td>Transporte/Armazenamento</td></tr><tr><td>03</td><td>Coordenação</td></tr><tr><td>04</td><td>Supervisão de Montagem</td></tr><tr><td>05</td><td>Instalação/Assistência</td></tr><tr><td>06</td><td>Layout/Medição/Conferência</td></tr><tr><td>07</td><td>Contratado - Franquia</td></tr><tr><td>08</td><td>Financeira</td></tr><tr><td>09</td><td>Reserva</td></tr>
       </tbody></table></div>
       <div class="help-step"><b>Etapa 2</b><div><h3>Gerar Nota Fiscal de Serviço</h3><p>Após <b>Próximo</b>, exibir os dados necessários à preparação da nota, conforme o mockup de referência.</p>
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Campo</th><th>Finalidade</th></tr></thead><tbody>
@@ -740,7 +748,12 @@ function updateTaxesFromInputs(field,raw){
   state.taxDraft=t;renderModal();
 }
 function setGenerationItem(id,checked){
-  if(id===9&&autoItem9())return;
+  if(id===9&&autoItem9()){
+    // O item 9 permanece selecionado enquanto 3, 4 e 5 estiverem marcados.
+    // Recria o checkbox marcado (em azul) se o usuário tentar desmarcá-lo.
+    renderModal();
+    return;
+  }
   if(checked)state.itemSelection.add(id);else state.itemSelection.delete(id);
   renderModal();
 }

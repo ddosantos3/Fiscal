@@ -29,6 +29,7 @@ A entrada da aplicação é `index.html`. O projeto utiliza `styles.css`, `app.j
 ## Alterações aprovadas na apresentação
 
 - Edição independente de **% Venda** e **Valor** na primeira etapa de Gerar NFS-e, recalculando os somatórios da seleção.
+- A coluna **Itens Enviados p/ NFS-e** exibe **código e descrição completa**; o item **09 - Reserva** aparece marcado em azul, sem “(Auto)”, mantendo a regra de inclusão automática com 3/4/5.
 - Listagem de emitentes de referência e exemplos com código e descrição para IBS/CBS, Serviço NFS-e, ISS e NBS na segunda etapa.
 - Remoção da grade de ambientes e do atalho de Tributos Federais da segunda etapa. **Tributos Federais** permanece na barra superior.
 - Remoção do botão **Pré-visualizar DANFSe** da barra.
