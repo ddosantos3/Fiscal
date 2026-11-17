@@ -401,7 +401,7 @@ A janela exibe **data de geração, identificação de lote e paginação**. Ao 
 
 ## Totalizadores no rodapé
 
-Os dois primeiros indicadores mostram **somas monetárias dos valores dos itens (R$)**; o terceiro conserva a quantidade de itens da busca e o quarto mostra o valor monetário da venda.
+O rodapé apresenta **cinco totalizadores**. Os dois primeiros mostram **somas monetárias dos itens (R$)**, o terceiro conserva a quantidade da busca e os dois últimos exibem somas da coluna **Valor Venda** para toda a consulta e somente para os contratos selecionados.
 
 #### Total Selecionado (Item)
 
@@ -419,6 +419,17 @@ Quantidade de itens retornados pelos filtros da pesquisa, considerando o conjunt
 
 **Soma real, em reais, dos valores da coluna Valor Venda** de todos os contratos efetivamente retornados pelos filtros, incluindo outras páginas. No conjunto inicial dos 16 contratos demonstrativos, o resultado é **R$ 3.262.669,79**. O valor deve ser recalculado após filtros e alterações no valor de venda.
 
+#### Total (Valor Venda Selecionado)
+
+**Soma em reais da coluna Valor Venda somente dos contratos marcados no checkbox**, desde que correspondam aos filtros da consulta. Não se limita à página aberta e recalcula imediatamente quando o usuário marca ou desmarca contratos, aplica filtros ou altera o valor de uma venda.
+
+- **Nenhum contrato marcado:** R$ 0,00.
+- **Somente o contrato de Daniel Ferreira Mendes marcado:** R$ 60.400,00, correspondente ao Valor Venda desse contrato na demonstração.
+- **Vários contratos marcados:** soma única dos valores de venda desses contratos, sem duplicar valores pela quantidade de itens.
+- **Combo Itens:** determina quais itens são somados em Total Selecionado (Item) e Total a Emitir (Item), mas **não rateia a coluna Valor Venda do contrato**. A escolha do Item 07 mantém as travas de seleção da montagem.
+
+Na implementação real, a fonte do Valor Venda deve ser a mesma exibida na coluna da listagem, para garantir consistência entre linha, seleção e rodapé.
+
 ### Regras de consistência
 
 * Os dois primeiros totalizadores representam **valores monetários de itens**, não quantidades de registros ou checkboxes.
@@ -426,6 +437,7 @@ Quantidade de itens retornados pelos filtros da pesquisa, considerando o conjunt
 * **Total Selecionado** considera contratos marcados que correspondem à consulta atual; **Total a Emitir** considera contratos Não Gerada retornados pelos filtros, selecionados ou não. Quando o **Item 07** estiver selecionado, o total a emitir exclui contratos sem **Data Término de Montagem**, conforme a trava de seleção existente.
 * Recalcular após filtros, seleção de contratos, troca do item e alteração do valor de qualquer item.
 * Os totais contemplam todos os registros filtrados carregados na aplicação, não só a página visível.
+* **Total (Valor Venda Selecionado)** considera apenas os contratos marcados e que correspondem à consulta atual, utilizando o Valor Venda uma vez por contrato.
 * Acumular centavos inteiros para preservar precisão monetária e impedir dupla contagem do Item 09.
 
 **Valores do protótipo:** os 16 contratos carregados apresentam valores demonstrativos individualizados do Item 03 que totalizam **R$ 121,68**; um contrato demonstra o valor unitário **R$ 9,36**. O número **416 na busca** permanece um indicador ilustrativo da referência visual, sem representar 416 contratos realmente carregados. Já o **Total (Valor Venda)** é calculado sobre os 16 registros existentes e começa em **R$ 3.262.669,79**, deixando de usar o valor fictício fixo de R$ 78.018.029,38. Os dois primeiros totalizadores somam somente os registros demonstrativos existentes. O backend deverá fornecer os valores de cada item por contrato e o conjunto completo, incluindo os resultados de outras páginas.
