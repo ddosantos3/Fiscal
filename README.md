@@ -31,7 +31,7 @@ A entrada da aplicação é `index.html`. O projeto utiliza `styles.css`, `app.j
 - Cabeçalho do módulo identificado como **Fiscal — Nota Fiscal de Serviço Eletrônica**.
 
 - Edição independente de **% Venda** e **Valor** na primeira etapa de Gerar NFS-e, recalculando os somatórios da seleção.
-- **Total Selecionado (Item)** e **Total a Emitir (Item)** passam a somar os **valores em reais dos itens**, respeitando o combo **Itens**, os filtros da consulta e as edições. O Item 03 soma R$ 121,68 entre os 16 contratos do exemplo e R$ 9,36 para o contrato demo-3 selecionado.
+- **Total Selecionado (Item)** exibe a **quantidade de contratos marcados** que atendem aos filtros (ex.: quatro contratos com Item 03 = **4**); não soma valores em reais. **Total a Emitir (Item)** permanece a soma monetária dos itens elegíveis, respeitando o combo **Itens** e filtros (Item 03 nos 16 contratos de exemplo = R$ 121,68).
 - **Total (Valor Venda)** soma os valores reais da coluna Valor Venda dos contratos retornados pelos filtros (R$ 3.262.669,79 na amostra inicial), sem usar o valor estático anterior.
 - **Total (Valor Venda Selecionado)** soma os valores da coluna Valor Venda apenas dos contratos marcados e que correspondem aos filtros; inicia em R$ 0,00 e atualiza automaticamente ao marcar/desmarcar.
 - Cabeçalho ajustado para **Kasabella 1 - Loja 352**, avatar **CA**.
