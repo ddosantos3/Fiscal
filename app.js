@@ -284,7 +284,7 @@ const HELP_GROUPS = [
       <h2>Filtros e pesquisa</h2><p>A tela disponibiliza filtros necessários à identificação dos contratos e itens candidatos à emissão.</p>
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Controle</th><th>Funcionamento</th></tr></thead><tbody>
         <tr><td><b>Loja</b></td><td>Restringe os registros à loja selecionada.</td></tr>
-        <tr><td><b>Status</b></td><td>Consulta registros segundo a situação da emissão (por exemplo, Não Geradas, Emitidas e Canceladas).</td></tr>
+        <tr><td><b>Status</b></td><td>Filtra pela situação do documento fiscal. Use <b>--Todos--</b> para consultar todas as situações. O protótipo apresenta dados fictícios inicialmente em <b>Não Geradas</b>.</td></tr>
         <tr><td><b>Itens</b></td><td>Seleciona um item específico do contrato ou todos; ao escolher o <b>Item 7</b> ativa a trava especial de montagem.</td></tr>
         <tr><td><b>Buscar por</b></td><td>Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente.</td></tr>
         <tr><td><b>Período</b></td><td>Define a abrangência temporal da pesquisa.</td></tr>
@@ -293,6 +293,7 @@ const HELP_GROUPS = [
         <tr><td><b>Aplicar Filtro</b></td><td>Executa a consulta conforme os critérios informados.</td></tr>
         <tr><td><b>Paginação</b></td><td>Navega pelas páginas; seleção e totalizadores devem considerar o conjunto filtrado e não somente o que está visível na página.</td></tr>
       </tbody></table></div>
+      <h3>Opções do combo Status</h3><p>A tela apresenta as opções abaixo, na mesma ordem definida no eFinance. <b>--Todos--</b> remove o filtro de status.</p><ul class="help-status-list"><li>Não Geradas</li><li>Geradas Parcialmente</li><li>Pendente de Transmissão</li><li>Transmitindo</li><li>Aguardando Resposta</li><li>Autorizada</li><li>Inutilizada</li><li>Denegada</li><li>Cancelada</li><li>Nota de Entrada</li><li>Arquivada</li></ul><p><b>Nota:</b> as opções representam o filtro da interface; o protótipo não executa transições fiscais reais.</p>
       <h3>Tipos de venda não disponíveis</h3><p><b>AT Com Custo</b> e <b>AT Sem Custo</b> devem sair das opções de pesquisa destinadas à NFS-e. Os demais tipos seguem as regras existentes.</p>
       <div class="help-notice help-neutral"><b>Importante:</b> a exclusão desses tipos das opções de pesquisa não confirma, por si só, a remoção de registros históricos. Esse ponto permanece sujeito à validação técnica.</div>
     `

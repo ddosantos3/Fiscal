@@ -125,7 +125,7 @@ A tela disponibiliza filtros necessários à identificação dos contratos e ite
 | Controle | Funcionamento |
 | --- | --- |
 | **Loja** | Restringe os registros à loja selecionada. |
-| **Status** | Consulta registros segundo a situação da emissão (por exemplo, Não Geradas, Emitidas e Canceladas). |
+| **Status** | Filtra pela situação do documento fiscal; **--Todos--** remove esse filtro. O protótipo inicia com **Não Geradas**. |
 | **Itens** | Seleciona um item específico do contrato ou todos; ao escolher o **Item 7** ativa a trava especial de montagem. |
 | **Buscar por** | Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente. |
 | **Período** | Define a abrangência temporal da pesquisa. |
@@ -133,6 +133,25 @@ A tela disponibiliza filtros necessários à identificação dos contratos e ite
 | **de / até** | Delimitam a data inicial e final. |
 | **Aplicar Filtro** | Executa a consulta conforme os critérios informados. |
 | **Paginação** | Navega pelas páginas; seleção e totalizadores devem considerar o conjunto filtrado e não somente o que está visível na página. |
+
+### Opções do combo Status
+
+O combo apresenta as opções abaixo, na ordem da tela de referência:
+
+- --Todos--
+- Não Geradas
+- Geradas Parcialmente
+- Pendente de Transmissão
+- Transmitindo
+- Aguardando Resposta
+- Autorizada
+- Inutilizada
+- Denegada
+- Cancelada
+- Nota de Entrada
+- Arquivada
+
+**Comportamento no protótipo:** o filtro inicial permanece em **Não Geradas**. Selecionar **--Todos--** apresenta todos os registros demonstrativos; escolher um status sem registros correspondentes retorna uma busca vazia. A presença da opção na interface não implica implementação de regras fiscais específicas para esse status.
 
 ### Tipos de venda não disponíveis
 
