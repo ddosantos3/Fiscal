@@ -72,6 +72,11 @@ const itemCatalog=[
   {id:8,name:'Financeira',provider:'Kasabella',pct:0,value:0},
   {id:9,name:'Reserva',provider:'MA FORNECEDOR 5',pct:0,value:0},
 ];
+// Valores de exemplo por contrato: 16 registros do item 03 totalizam R$ 121,68.
+// O contrato demo-3 conserva o valor R$ 9,36 mostrado no modal aprovado.
+// Não são dados fiscais reais; o somatório é calculado a partir desta base de linhas.
+const DEMO_ITEM_03_VALUES=[8.12,6.48,9.36,5.24,7.89,9.36,4.50,7.95,6.90,8.35,7.60,9.14,6.72,8.05,6.44,9.58];
+rows.forEach((row,index)=>{row.itemValues={3:DEMO_ITEM_03_VALUES[index]};});
 // Resolve a descrição na mesma fonte usada pela seleção de itens; mantém os códigos como dados internos.
 function describeSentItem(code){
   const id=Number.parseInt(String(code),10);
@@ -112,14 +117,38 @@ function getFilteredRows(){
 }
 function activeRow(){return rows.find(r=>r.id===state.activeRow) || rows.find(r=>r.code==='27447') || rows[0];}
 function isRowLocked(r){return state.filterItem==='7'&&!r.montage;}
+// Valores monetários por item e por contrato; edições prevalecem sobre a amostra.
+function itemForContract(row,id){
+  const item=itemCatalog.find(entry=>entry.id===Number(id));
+  if(!item||!row)return null;
+  const seed=Object.prototype.hasOwnProperty.call(row.itemValues||{},item.id)
+    ?row.itemValues[item.id]:item.value;
+  const edit=state.itemEdits[row.id]?.[item.id]||{};
+  return {...item,value:seed,...edit};
+}
+function sumItemValues(contracts,filterItem=state.filterItem){
+  const ids=filterItem?[Number(filterItem)]:itemCatalog.map(item=>item.id);
+  // Centavos inteiros evitam erro de ponto flutuante em valores monetários.
+  const cents=contracts.reduce((contractSum,row)=>contractSum+ids.reduce((itemSum,id)=>{
+    const item=itemForContract(row,id);
+    return itemSum+(item?Math.round(Math.max(0,Number(item.value)||0)*100):0);
+  },0),0);
+  return cents/100;
+}
 function footerTotals(filtered){
   const defaultView = !state.selectedOnly&&!state.search&&!state.searchStart&&!state.searchEnd&&!state.filterStore&&state.filterStatus==='Nao Gerada'&&!state.filterFin;
-  const selectedVisible=rows.filter(r=>state.selected.has(r.id));
-  const selectedCount=selectedVisible.reduce((sum,r)=>sum+(r.sentItems.length||1),0);
-  $('total-selected').textContent=selectedCount;
-  $('total-emit').textContent=defaultView?'32':filtered.filter(r=>r.status==='Nao Gerada').length;
+  const selectedVisible=filtered.filter(row=>state.selected.has(row.id));
+  // Total Selecionado: valores apenas dos contratos marcados na consulta atual.
+  $('total-selected').textContent=money(sumItemValues(selectedVisible));
+  // Total a Emitir: valores de todos os contratos elegíveis da consulta,
+  // independentemente da página atual; não se limita às linhas marcadas.
+  const eligible=filtered.filter(row=>row.status==='Nao Gerada'&&!isRowLocked(row));
+  $('total-emit').textContent=money(sumItemValues(eligible));
   $('total-found').textContent=defaultView?'416':filtered.length;
-  $('total-sale').textContent=defaultView?'78.018.029,38':money(filtered.reduce((sum,r)=>sum+r.value,0));
+  // Total de vendas em reais: soma dos contratos efetivamente retornados,
+  // em centavos inteiros para evitar imprecisões acumuladas.
+  const saleCents=filtered.reduce((sum,row)=>sum+Math.round((Number(row.value)||0)*100),0);
+  $('total-sale').textContent=money(saleCents/100);
 }
 function renderTable(){
   const filtered=getFilteredRows();const totalPages=Math.max(1,Math.ceil(filtered.length/state.pageSize));
@@ -179,8 +208,7 @@ function autoItem9(){return [3,4,5].every(id=>state.itemSelection.has(id));}
 function selectedItemIds(){const ids=new Set(state.itemSelection);if(autoItem9())ids.add(9);return ids;}
 function generationTabs(){return `<div class="modal-tabs"><button type="button" class="${state.step===1?'active':''}" data-modal-action="tab-items">Gerar NFS-e - Selecione os itens que serão enviados para NFS-e.</button><button type="button" class="${state.step===2?'active':''}" data-modal-action="tab-data">Gerar Nota Fiscal de Serviço</button></div>`;}
 function getItemValue(i){
-  const changes=state.itemEdits[activeRow().id]?.[i.id]||{};
-  return {...i,...changes};
+  return itemForContract(activeRow(),i.id);
 }
 
 function recalcGenerationSummary(){
@@ -205,6 +233,8 @@ function changeItemValue(id,key,raw,commit=false){
   const keyRow=activeRow().id;
   if(!state.itemEdits[keyRow])state.itemEdits[keyRow]={};
   state.itemEdits[keyRow][id]={...state.itemEdits[keyRow][id],[key]:numeric};
+  // Reflete valores ajustados também nos totalizadores do rodapé.
+  footerTotals(getFilteredRows());
   if(commit)renderModal();else recalcGenerationSummary();
 }
 
@@ -255,8 +285,8 @@ function taxInput(field,value,disabled=false){return `<input type="text" inputmo
 function taxPct(field,val,disabled=false){return taxInput(field,`${decimal(val,2)} %`,disabled);}
 function contractSelectedItems(row=activeRow()){
  if(Array.isArray(row.generatedItems)&&row.generatedItems.length)return row.generatedItems;
- const ids=selectedItemIds(),edits=state.itemEdits[row.id]||{};
- return itemCatalog.filter(i=>ids.has(i.id)).map(i=>({...i,...(edits[i.id]||{})}));
+ const ids=selectedItemIds();
+ return itemCatalog.filter(i=>ids.has(i.id)).map(i=>itemForContract(row,i.id));
 }
 function getTaxBase(row=activeRow()){
  const sum=contractSelectedItems(row).reduce((s,i)=>s+Math.max(0,Number(i.value)||0),0);
@@ -432,7 +462,7 @@ const HELP_GROUPS = [
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Controle</th><th>Funcionamento</th></tr></thead><tbody>
         <tr><td><b>Loja</b></td><td>Restringe os registros à loja selecionada.</td></tr>
         <tr><td><b>Status</b></td><td>Filtra pela situação do documento fiscal. Use <b>--Todos--</b> para consultar todas as situações. O protótipo apresenta dados fictícios inicialmente em <b>Não Geradas</b>.</td></tr>
-        <tr><td><b>Itens</b></td><td>Seleciona um item específico do contrato ou todos; ao escolher o <b>Item 7</b> ativa a trava especial de montagem.</td></tr>
+        <tr><td><b>Itens</b></td><td>Seleciona um item específico do contrato (01 a 09) ou <b>--Todos--</b> para somar todos. Atualiza os valores monetários de <b>Total Selecionado</b> e <b>Total a Emitir</b>; ao escolher o <b>Item 7</b> também ativa a trava especial de montagem.</td></tr>
         <tr><td><b>FIN</b></td><td>--Todos--; Aberto - Todos; Aberto - Não enviado; Aberto - Enviado sem fin; Fechado - Enviado com fin; Em substituição. No protótipo, são situações fictícias para filtro, independentes do indicador Fin Processado.</td></tr>
         <tr><td><b>Buscar por</b></td><td>Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente.</td></tr>
         <tr><td><b>Período</b></td><td>Define a abrangência temporal da pesquisa.</td></tr>
@@ -572,15 +602,15 @@ const HELP_GROUPS = [
     id:'totals', title:'Totalizadores e rodapé', icon:'filter', kicker:'10 · Indicadores',
     subtitle:'O que soma cada indicador e como é calculado.',
     html:`
-      <h2>Totalizadores no rodapé</h2><p>Os três primeiros indicadores mostram <b>quantidade de itens</b>. O quarto mostra <b>valor monetário da venda</b>.</p>
+      <h2>Totalizadores no rodapé</h2><p>Os dois primeiros indicadores mostram <b>valor monetário dos itens</b> (R$), não quantidade de registros. O terceiro mostra quantidade de itens da busca e o quarto, valor monetário das vendas.</p>
       <div class="help-card-grid help-total-grid">
-        <div class="help-info-card"><h4>Total Selecionado (Item)</h4><p>Quantidade de itens correspondentes aos registros selecionados. Deve considerar a composição automática aplicável (por exemplo, o item 9), sem duplicidade.</p></div>
-        <div class="help-info-card"><h4>Total a Emitir (Item)</h4><p>Quantidade de itens elegíveis à emissão da NFS-e, de acordo com os critérios de elegibilidade que deverão ser definidos com o desenvolvimento.</p></div>
+        <div class="help-info-card"><h4>Total Selecionado (Item)</h4><p><b>Soma em reais</b> dos valores dos itens nos <b>contratos marcados</b>, dentro da consulta atual. O combo <b>Itens</b> determina qual item somar; <b>--Todos--</b> soma os nove itens de cada contrato, uma única vez. Exemplo: Item 03, contrato Daniel Ferreira Mendes selecionado = <b>R$ 9,36</b>.</p></div>
+        <div class="help-info-card"><h4>Total a Emitir (Item)</h4><p><b>Soma em reais</b> dos itens nos <b>contratos elegíveis para emissão</b> (status Não Gerada) retornados pelos filtros, estejam marcados ou não. Com Item 03 e os 16 contratos demonstrativos: <b>R$ 121,68</b>. Com <b>--Todos--</b>, soma os valores de todos os itens desses contratos.</p></div>
         <div class="help-info-card"><h4>Total da Busca (Item)</h4><p>Quantidade de itens retornados pelos filtros da pesquisa, considerando o conjunto completo, não só a página visível.</p></div>
-        <div class="help-info-card"><h4>Total (Valor Venda)</h4><p>Soma do campo Valor Venda dos registros abrangidos pela consulta, exibida em moeda brasileira (R$).</p></div>
+        <div class="help-info-card"><h4>Total (Valor Venda)</h4><p><b>Soma real da coluna Valor Venda</b> de todos os contratos retornados pela consulta (não apenas a página atual). Recalcula quando os filtros ou valores de venda mudam. Os 16 contratos demonstrativos somam <b>R$ 3.262.669,79</b>.</p></div>
       </div>
-      <h3>Regras de consistência</h3><ul class="help-bullets"><li>O critério de contagem é <b>item</b>, e não simplesmente quantidade de linhas ou contratos.</li><li>Reaplicar os cálculos após filtros, seleção e inclusão automática de itens, conforme a finalidade de cada indicador.</li><li>Os totais devem refletir todo o conjunto filtrado, mesmo quando há várias páginas.</li><li>Evitar contar um mesmo item duas vezes ao incluir automaticamente o item 9.</li></ul>
-      <div class="help-notice help-neutral"><b>Valores do protótipo:</b> os exemplos 32 itens a emitir, 416 itens na busca e R$ 78.018.029,38 representam dados de demonstração. A regra exata de elegibilidade do total a emitir e a abrangência monetária precisam ser confirmadas no backend.</div>
+      <h3>Regras de consistência</h3><ul class="help-bullets"><li>Os dois primeiros indicadores são <b>somatórios monetários</b> dos itens, calculados por contrato, nunca contagem de contratos ou de checkboxes.</li><li>Combo <b>Itens = 01 a 09</b>: somar somente o item selecionado. <b>--Todos--</b>: somar os valores de todos os itens, sem duplicar o 09 - Reserva.</li><li>Recalcular após filtros, mudança de item, marcação/desmarcação de contratos e edição de valores por item.</li><li>Os totais devem contemplar todos os contratos filtrados, não somente a página atual.</li><li><b>Total Selecionado</b> considera os contratos marcados visíveis na consulta. <b>Total a Emitir</b> considera todos os contratos Não Gerada que atendam aos filtros, independentemente de estarem marcados; na escolha do <b>Item 07</b>, exclui contratos sem Data Término de Montagem, respeitando a trava de emissão existente.</li><li>Somar em centavos inteiros para evitar divergências de arredondamento.</li></ul>
+      <div class="help-notice help-neutral"><b>Dados demonstrativos:</b> os 16 contratos carregados têm valores individuais para o Item 03, totalizando <b>R$ 121,68</b>; um contrato de exemplo mantém <b>R$ 9,36</b>. O valor 416 em Total da Busca continua sendo um indicador ilustrativo. Já <b>Total (Valor Venda)</b> soma os contratos efetivamente carregados: <b>R$ 3.262.669,79</b> no cenário inicial. O cálculo dos dois primeiros totalizadores usa apenas os contratos efetivamente carregados no protótipo, sem simular registros inexistentes. O backend real deve fornecer os valores por item/contrato e o conjunto completo paginado.</div>
     `
   },
   {

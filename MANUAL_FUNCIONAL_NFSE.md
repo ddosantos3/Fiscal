@@ -129,7 +129,7 @@ A tela disponibiliza filtros necessários à identificação dos contratos e ite
 | --- | --- |
 | **Loja** | Restringe os registros à loja selecionada. |
 | **Status** | Filtra pela situação do documento fiscal; **--Todos--** remove esse filtro. O protótipo inicia com **Não Geradas**. |
-| **Itens** | Seleciona um item específico do contrato ou todos; ao escolher o **Item 7** ativa a trava especial de montagem. |
+| **Itens** | Seleciona um item específico do contrato ou **--Todos--**; atualiza os somatórios monetários de Total Selecionado e Total a Emitir. Ao escolher o **Item 7**, ativa também a trava especial de montagem. |
 | **FIN** | Opções --Todos--; Aberto - Todos; Aberto - Não enviado; Aberto - Enviado sem fin; Fechado - Enviado com fin; Em substituição. Estados demonstrativos independentes do indicador Fin Processado. |
 | **Buscar por** | Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente. |
 | **Período** | Define a abrangência temporal da pesquisa. |
@@ -401,15 +401,15 @@ A janela exibe **data de geração, identificação de lote e paginação**. Ao 
 
 ## Totalizadores no rodapé
 
-Os três primeiros indicadores mostram **quantidade de itens**. O quarto mostra **valor monetário da venda**.
+Os dois primeiros indicadores mostram **somas monetárias dos valores dos itens (R$)**; o terceiro conserva a quantidade de itens da busca e o quarto mostra o valor monetário da venda.
 
 #### Total Selecionado (Item)
 
-Quantidade de itens correspondentes aos registros selecionados. Deve considerar a composição automática aplicável (por exemplo, o item 9), sem duplicidade.
+**Soma em reais** dos valores dos itens dos contratos **marcados na consulta atual**. Quando o combo **Itens** estiver em **03 - Coordenação**, soma somente o valor do item 3 dos contratos selecionados. No exemplo de um contrato com valor de R$ 9,36, retorna **9,36**, e não 1. Com **--Todos--**, soma os valores de todos os itens dos contratos marcados, sem duplicação.
 
 #### Total a Emitir (Item)
 
-Quantidade de itens elegíveis à emissão da NFS-e, de acordo com os critérios de elegibilidade que deverão ser definidos com o desenvolvimento.
+**Soma em reais** dos valores dos itens de **todos os contratos elegíveis para emissão (status Não Gerada)** retornados pelos filtros, independentemente de estarem selecionados. No exemplo com os **16 registros demonstrativos** e o Item 03, soma **R$ 121,68**. Com **--Todos--**, soma todos os itens de todos os contratos elegíveis; com 01, apenas os valores do Item 01; e assim para 02 a 09.
 
 #### Total da Busca (Item)
 
@@ -417,16 +417,18 @@ Quantidade de itens retornados pelos filtros da pesquisa, considerando o conjunt
 
 #### Total (Valor Venda)
 
-Soma do campo Valor Venda dos registros abrangidos pela consulta, exibida em moeda brasileira (R$).
+**Soma real, em reais, dos valores da coluna Valor Venda** de todos os contratos efetivamente retornados pelos filtros, incluindo outras páginas. No conjunto inicial dos 16 contratos demonstrativos, o resultado é **R$ 3.262.669,79**. O valor deve ser recalculado após filtros e alterações no valor de venda.
 
 ### Regras de consistência
 
-* O critério de contagem é **item**, e não simplesmente quantidade de linhas ou contratos.
-* Reaplicar os cálculos após filtros, seleção e inclusão automática de itens, conforme a finalidade de cada indicador.
-* Os totais devem refletir todo o conjunto filtrado, mesmo quando há várias páginas.
-* Evitar contar um mesmo item duas vezes ao incluir automaticamente o item 9.
+* Os dois primeiros totalizadores representam **valores monetários de itens**, não quantidades de registros ou checkboxes.
+* O combo **Itens** define a composição: 01 a 09 soma somente o respectivo item; **--Todos--** soma todos os itens, cada um apenas uma vez, inclusive a Reserva.
+* **Total Selecionado** considera contratos marcados que correspondem à consulta atual; **Total a Emitir** considera contratos Não Gerada retornados pelos filtros, selecionados ou não. Quando o **Item 07** estiver selecionado, o total a emitir exclui contratos sem **Data Término de Montagem**, conforme a trava de seleção existente.
+* Recalcular após filtros, seleção de contratos, troca do item e alteração do valor de qualquer item.
+* Os totais contemplam todos os registros filtrados carregados na aplicação, não só a página visível.
+* Acumular centavos inteiros para preservar precisão monetária e impedir dupla contagem do Item 09.
 
-**Valores do protótipo:** os exemplos 32 itens a emitir, 416 itens na busca e R$ 78.018.029,38 representam dados de demonstração. A regra exata de elegibilidade do total a emitir e a abrangência monetária precisam ser confirmadas no backend.
+**Valores do protótipo:** os 16 contratos carregados apresentam valores demonstrativos individualizados do Item 03 que totalizam **R$ 121,68**; um contrato demonstra o valor unitário **R$ 9,36**. O número **416 na busca** permanece um indicador ilustrativo da referência visual, sem representar 416 contratos realmente carregados. Já o **Total (Valor Venda)** é calculado sobre os 16 registros existentes e começa em **R$ 3.262.669,79**, deixando de usar o valor fictício fixo de R$ 78.018.029,38. Os dois primeiros totalizadores somam somente os registros demonstrativos existentes. O backend deverá fornecer os valores de cada item por contrato e o conjunto completo, incluindo os resultados de outras páginas.
 
 ---
 

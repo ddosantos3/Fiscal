@@ -403,3 +403,6 @@
 }
 .sent-items-column .sent-item-label{display:block;padding:1px 0}
 .generation-items-table input[data-gen-item]{accent-color:#1677ef;opacity:1}
+
+/* Totalizadores de itens exibidos em valores monetários, não em quantidades. */
+#total-selected,#total-emit{min-width:110px;font-variant-numeric:tabular-nums}
