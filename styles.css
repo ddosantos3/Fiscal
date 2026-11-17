@@ -305,3 +305,40 @@
   .toolbar{justify-content:flex-start;gap:4px;}
 }
 
+
+
+/* Atualização aprovada: edição de itens, filtro FIN e consulta de Impostos. */
+.filter-line #fin-filter{width:210px}
+.generation-items-table .gen-editable{
+  display:block;width:100%;min-width:0;height:25px;padding:3px 7px;text-align:right;
+  color:#1b3553;background:#fff;border:1px solid #b9d1e9;border-radius:4px;
+  font-size:11.5px;font-variant-numeric:tabular-nums;
+}
+.generation-items-table .gen-editable:focus{
+  border-color:#3475eb;box-shadow:0 0 0 2px rgba(40,105,224,.14);outline:none;
+}
+.generation-items-table tr.muted .gen-editable{color:#45647e}
+.generation-items-table td:nth-child(4),.generation-items-table td:nth-child(5){padding:4px 6px}
+.generation-items-table th:nth-child(2){width:26%}
+.generation-items-table th:nth-child(3){width:35%}
+.generation-items-table th:nth-child(4){width:16%}
+.generation-items-table th:nth-child(5){width:15%}
+.auto-indicator{color:#0c7898;font-weight:700}
+.gen-form-compact .gen-fields{grid-template-columns:minmax(0,1fr) 235px;gap:14px}
+.gen-form-compact .gen-stack{grid-template-columns:112px minmax(0,1fr)}
+.gen-form-compact select{width:100%;min-width:0;text-overflow:ellipsis}
+.gen-form-compact .gen-text-group{margin-top:36px}
+.gen-form-compact .gen-text-group+.gen-text-group{margin-top:12px}
+.modal.generation:has(.gen-form-compact){height:min(615px,calc(100vh - 70px))}
+.modal.impostos-modal{width:min(1400px,calc(100vw - 46px));height:min(615px,calc(100vh - 50px));min-height:420px}
+.impostos-modal .modal-content{display:flex;flex-direction:column;gap:10px;padding:16px 18px}
+.impostos-description{font-size:11.5px;color:#466681}
+.impostos-table-wrap{min-height:0;flex:1;overflow:auto;border:1px solid #c7d5e2;background:#fff}
+.impostos-table{border-collapse:collapse;min-width:1320px;width:100%;font-size:11px;font-variant-numeric:tabular-nums}
+.impostos-table th{position:sticky;top:0;background:#e3eaf0;color:#295174;text-align:left;padding:9px 6px;border:1px solid #cbd8e5;font-size:10px;white-space:nowrap}
+.impostos-table td{padding:8px 6px;border:1px solid #d9e2ea;white-space:nowrap}
+.impostos-table td.num{text-align:right}
+.impostos-table tr:nth-child(even){background:#f2f7fb}
+.impostos-empty{padding:25px 22px;border:1px dashed #bad4e7;border-radius:5px;background:#f7fbff;color:#405e79;max-width:720px}
+.impostos-empty h3{font-size:16px;color:#14436a;margin:0 0 12px}
+.impostos-notice{font-size:10.5px;color:#6c7f92;margin:0 0 3px}

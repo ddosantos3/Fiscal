@@ -39,7 +39,6 @@
           <button class="tool-btn" type="button" data-action="danfse"><span data-icon="printer"></span>DANFSe</button>
           <button class="tool-btn" type="button" data-action="resend"><span data-icon="mail"></span>Reenviar NFS-e e XML por e-mail</button>
           <button class="tool-btn" type="button" data-action="refresh"><span data-icon="refresh"></span>Forçar Nova Consulta</button>
-          <button class="tool-btn" type="button" data-action="preview"><span data-icon="printer"></span>Pré-visualizar DANFSe</button>
           <button class="tool-btn" type="button" data-action="cancel"><span data-icon="x-circle"></span>Cancelar NFS-e</button>
           <button class="tool-btn" type="button" data-action="invalidate"><span data-icon="circle-off"></span>Inutilizar Número</button>
           <button class="tool-btn" type="button" data-action="remove"><span data-icon="trash"></span>Excluir</button>
@@ -49,6 +48,7 @@
         <div class="toolbar-group toolbar-secondary">
           <button class="tool-btn" type="button" data-action="history"><span data-icon="search"></span>Histórico</button>
           <button class="tool-btn tool-tax" type="button" data-action="tax" title="Abrir Tributos Federais" aria-label="Tributos Federais"><span data-icon="layers"></span>Tributos Federais</button>
+          <button class="tool-btn" type="button" data-action="impostos" title="Consultar impostos do contrato" aria-label="Impostos"><span data-icon="layers"></span>Impostos</button>
           <span class="tool-separator"></span>
           <button class="tool-btn tool-print" type="button" data-action="print"><span data-icon="printer"></span>Imprimir</button>
           <span class="tool-separator"></span>
@@ -61,6 +61,7 @@
           <label for="loja">Loja:</label><select id="loja"><option value="">--Todas--</option><option>352</option><option>353</option></select>
           <label for="status">Status:</label><select id="status"><option value="">--Todos--</option><option value="Nao Gerada">Não Geradas</option><option value="Gerada Parcialmente">Geradas Parcialmente</option><option value="Pendente de Transmissão">Pendente de Transmissão</option><option value="Transmitindo">Transmitindo</option><option value="Aguardando Resposta">Aguardando Resposta</option><option value="Autorizada">Autorizada</option><option value="Inutilizada">Inutilizada</option><option value="Denegada">Denegada</option><option value="Cancelada">Cancelada</option><option value="Nota de Entrada">Nota de Entrada</option><option value="Arquivada">Arquivada</option></select>
           <label for="item-filter">Itens:</label><select id="item-filter"><option value="">--Todos--</option><option value="1">01 - Produto</option><option value="2">02 - Transporte/Armazenamento</option><option value="3">03 - Coordenação</option><option value="4">04 - Supervisão de Montagem</option><option value="5">05 - Instalação/Assistência</option><option value="6">06 - Layout/Medição/Conferência</option><option value="7">07 - Contratado - Franquia</option><option value="8">08 - Financeira</option><option value="9">09 - Reserva</option></select>
+          <label for="fin-filter">FIN:</label><select id="fin-filter" aria-label="Filtrar situação FIN"><option value="">--Todos--</option><option value="Aberto - Todos">Aberto - Todos</option><option value="Aberto - Não enviado">Aberto - Não enviado</option><option value="Aberto - Enviado sem fin">Aberto - Enviado sem fin</option><option value="Fechado - Enviado com fin">Fechado - Enviado com fin</option><option value="Em substituição">Em substituição</option></select>
           <span class="filter-note" id="item7-note" hidden><span data-icon="alert"></span>Item 7: montagem concluída obrigatória</span>
         </div>
         <div class="search-line"><span class="search-binoculars" data-icon="binoculars"></span><label for="search-type">Buscar por:</label><select id="search-type" class="search-type"><option value="client">Cliente</option><option value="contract">Contrato</option><option value="code">Cód.</option></select><input id="search-input" type="search" placeholder="Digite aqui o que deseja buscar" aria-label="Pesquisar registros" /></div>

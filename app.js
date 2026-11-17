@@ -58,6 +58,9 @@ const rows = [
   ['32264','João Victor Cardoso','Curto Prazo','3531367','11/11/2026','0-0',1285000.00,'12/11/2026','13/11/2026',353],
   ['20396','Maria Eduarda Fonseca','Normal','3531364','11/11/2026','595173-595173',2600.00,'12/11/2026','13/11/2026',353]
 ].map((r,i)=>({id:`demo-${i+1}`,emp:1,code:r[0],client:r[1],saleType:r[2],contract:r[3],saleDate:r[4],orders:r[5],value:r[6],montage:r[7],future:r[8],store:r[9],status:'Nao Gerada',fin:i!==6,finDate:i===6?'':'11/11/2026 23:41:08',sentItems:[]}));
+// Fases FIN fictícias para demonstrar o filtro; independentes do indicador "Fin Processado".
+const FIN_DEMO_STATUS=["Aberto - Não enviado","Aberto - Enviado sem fin","Fechado - Enviado com fin","Fechado - Enviado com fin","Aberto - Não enviado","Fechado - Enviado com fin","Em substituição","Aberto - Enviado sem fin","Fechado - Enviado com fin","Fechado - Enviado com fin","Aberto - Não enviado","Fechado - Enviado com fin","Fechado - Enviado com fin","Em substituição","Aberto - Enviado sem fin","Fechado - Enviado com fin"];
+rows.forEach((r,i)=>{r.finStage=FIN_DEMO_STATUS[i]||'Aberto - Não enviado';});
 const itemCatalog=[
   {id:1,name:'Produto',provider:'FA FORNECEDOR',pct:29.448836,value:137.85},
   {id:2,name:'Transporte/Armazenamento',provider:'M. FORNECEDOR 3 T 1',pct:2.651357,value:12.41},
@@ -70,7 +73,7 @@ const itemCatalog=[
   {id:9,name:'Reserva',provider:'MA FORNECEDOR 5',pct:0,value:0},
 ];
 const taxDefaults={situation:'01',retention:'3',base:1000,pis:0.65,cofins:3,pisRet:0.65,cofinsRet:3,csllBase:1000,csllRate:1,cp:false,cpBase:0,cpRate:0,ir:true,irBase:1000,irRate:1.5,other:0};
-const state={selected:new Set(),page:1,pageSize:16,selectedOnly:false,modal:null,taxReturn:null,step:1,activeRow:null,itemSelection:new Set([3,4,5]),taxes:{},genForm:{emitter:'',date:today,ibscbs:'Teste - Simulado',service:'--- Não se aplica ---',iss:'--- Não se aplica ---',nbs:'',extra:'(1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Documento emitido por ME ou EPP optante pelo Simples Nacional;',fisco:'',env:true},search:'',searchType:'client',searchStart:'',searchEnd:'',searchField:'saleDate',filterItem:'',filterStore:'',filterStatus:'Nao Gerada',period:'3'};
+const state={selected:new Set(),page:1,pageSize:16,selectedOnly:false,modal:null,taxReturn:null,taxDraft:null,step:1,activeRow:null,itemSelection:new Set([3,4,5]),itemEdits:{},taxes:{},genForm:{emitter:'LB SERVICOS DE MONTAGENS',date:today,ibscbs:'TESTE001 - Teste - Simulado',service:'140601 - Instalação e montagem de aparelhos, máquinas e equipamentos',iss:'01 - Tributável dentro do município',nbs:'101040000 - Serviços de montagem e de edificação de construções pré-fabricadas',extra:'(1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Documento emitido por ME ou EPP optante pelo Simples Nacional;',fisco:'',env:true},search:'',searchType:'client',searchStart:'',searchEnd:'',searchField:'saleDate',filterItem:'',filterStore:'',filterStatus:'Nao Gerada',filterFin:'',period:'3'};
 const $ = id => document.getElementById(id);
 const root=$('modal-root');
 function toast(message,type='success'){
@@ -83,6 +86,8 @@ function getFilteredRows(){
     if(state.selectedOnly&&!state.selected.has(r.id))return false;
     if(state.filterStore&&String(r.store)!==state.filterStore)return false;
     if(state.filterStatus&&r.status!==state.filterStatus)return false;
+    if(state.filterFin==='Aberto - Todos'&&!r.finStage.startsWith('Aberto -'))return false;
+    if(state.filterFin&&state.filterFin!=='Aberto - Todos'&&r.finStage!==state.filterFin)return false;
     const field=state.searchType==='contract'?r.contract:state.searchType==='code'?r.code:r.client;
     if(state.search && !String(field).toLowerCase().includes(state.search.toLowerCase()))return false;
     const chosenField=state.searchField==='dataMontagem'?'montage':state.searchField==='dataLiberacao'?'future':'saleDate';
@@ -95,7 +100,7 @@ function getFilteredRows(){
 function activeRow(){return rows.find(r=>r.id===state.activeRow) || rows.find(r=>r.code==='27447') || rows[0];}
 function isRowLocked(r){return state.filterItem==='7'&&!r.montage;}
 function footerTotals(filtered){
-  const defaultView = !state.selectedOnly&&!state.search&&!state.searchStart&&!state.searchEnd&&!state.filterStore&&state.filterStatus==='Nao Gerada';
+  const defaultView = !state.selectedOnly&&!state.search&&!state.searchStart&&!state.searchEnd&&!state.filterStore&&state.filterStatus==='Nao Gerada'&&!state.filterFin;
   const selectedVisible=rows.filter(r=>state.selected.has(r.id));
   const selectedCount=selectedVisible.reduce((sum,r)=>sum+(r.sentItems.length||1),0);
   $('total-selected').textContent=selectedCount;
@@ -125,7 +130,7 @@ function renderTable(){
   $('item7-note').hidden=state.filterItem!=='7';
   const btn=document.querySelector('[data-action="selected"]');btn.classList.toggle('tool-primary',state.selectedOnly);btn.setAttribute('aria-pressed',String(state.selectedOnly));
 }
-function defaultResultCount(filtered){return !state.selectedOnly&&!state.search&&!state.searchStart&&!state.searchEnd&&!state.filterStore&&state.filterStatus==='Nao Gerada'?416:filtered.length;}
+function defaultResultCount(filtered){return !state.selectedOnly&&!state.search&&!state.searchStart&&!state.searchEnd&&!state.filterStore&&state.filterStatus==='Nao Gerada'&&!state.filterFin?416:filtered.length;}
 function chooseRow(rid,checked){
   const r=rows.find(x=>x.id===rid);if(!r)return;
   if(checked&&isRowLocked(r)){toast('Item 7: não é possível selecionar este contrato, pois a montagem ainda não foi concluída.','warning');return;}
@@ -144,12 +149,9 @@ function demoTarget(alsoSelect=false){
   if(alsoSelect&&!state.selected.size){state.selected.add(target.id);renderTable();toast('Contrato Fernanda Martins Rocha selecionado como exemplo para a apresentação.','warning');}
   state.activeRow=target.id;return target;
 }
-function openModal(name, rowId=null){if(rowId)state.activeRow=rowId;state.taxReturn=null;state.modal=name;renderModal();}
+function openModal(name, rowId=null){if(rowId)state.activeRow=rowId;state.taxReturn=null;state.modal=name;state.taxDraft=name==='tax'?(state.taxes[activeRow().id]?{...state.taxes[activeRow().id]}:{...taxDefaults}):null;renderModal();}
 function closeModal(){
-  if(state.modal==='tax'&&state.taxReturn==='generation'){
-    state.modal='generation';state.taxReturn=null;renderModal();return;
-  }
-  state.modal=null;state.taxReturn=null;root.innerHTML='';document.body.style.overflow='';
+  state.modal=null;state.taxReturn=null;state.taxDraft=null;root.innerHTML='';document.body.style.overflow='';
 }
 function modalMarkup(title,body,footer='',cls='',tabs='',header=true){
   return `<div class="modal-backdrop" role="presentation"><div class="modal ${cls}" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
@@ -161,40 +163,78 @@ function button(label,action,cls='',symbol=''){return `<button type="button" cla
 function autoItem9(){return [3,4,5].every(id=>state.itemSelection.has(id));}
 function selectedItemIds(){const ids=new Set(state.itemSelection);if(autoItem9())ids.add(9);return ids;}
 function generationTabs(){return `<div class="modal-tabs"><button type="button" class="${state.step===1?'active':''}" data-modal-action="tab-items">Gerar NFS-e - Selecione os itens que serão enviados para NFS-e.</button><button type="button" class="${state.step===2?'active':''}" data-modal-action="tab-data">Gerar Nota Fiscal de Serviço</button></div>`;}
+function getItemValue(i){
+  const changes=state.itemEdits[activeRow().id]?.[i.id]||{};
+  return {...i,...changes};
+}
+
+function recalcGenerationSummary(){
+  const picked=selectedItemIds();
+  const items=itemCatalog.map(getItemValue).filter(i=>picked.has(i.id));
+  const pct=items.reduce((sum,i)=>sum+i.pct,0);
+  const amount=items.reduce((sum,i)=>sum+i.value,0);
+  const p=document.querySelector('[data-summary-pct]'),v=document.querySelector('[data-summary-value]');
+  if(p)p.textContent=decimal(pct,6);
+  if(v)v.textContent=money(amount);
+}
+
+function changeItemValue(id,key,raw,commit=false){
+  const txt=String(raw??'').trim();
+  const valid=/^\d+(?:[.,]\d+)?$|^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(txt);
+  if(!valid){if(commit){toast('Informe um número válido e não negativo.','warning');renderModal();}return;}
+  const numeric=parseNumber(txt);
+  if(!Number.isFinite(numeric)||numeric<0||(key==='pct'&&numeric>100)){
+    if(commit){toast('O percentual deve estar entre 0 e 100 e o valor não pode ser negativo.','warning');renderModal();}
+    return;
+  }
+  const keyRow=activeRow().id;
+  if(!state.itemEdits[keyRow])state.itemEdits[keyRow]={};
+  state.itemEdits[keyRow][id]={...state.itemEdits[keyRow][id],[key]:numeric};
+  if(commit)renderModal();else recalcGenerationSummary();
+}
+
 function generationBody(){
   if(state.step===2)return generationForm();
-  const ids=selectedItemIds();const totalPct=itemCatalog.filter(i=>ids.has(i.id)).reduce((a,i)=>a+i.pct,0);
-  const totalSum=itemCatalog.filter(i=>ids.has(i.id)).reduce((a,i)=>a+i.value,0);
-  const tbody=itemCatalog.map(i=>`<tr class="${ids.has(i.id)?'':'muted'} ${i.id===9&&autoItem9()?'is-auto':''}">
-    <td><input type="checkbox" data-gen-item="${i.id}" aria-label="Selecionar item ${i.id}" ${ids.has(i.id)?'checked':''} ${i.id===9&&autoItem9()?'disabled title="Incluído automaticamente pela seleção dos itens 3, 4 e 5"':''} /></td>
-    <td>${String(i.id).padStart(2,'0')} - ${escapeHtml(i.name)}${i.id===9&&autoItem9()?' <span title="Inclusão automática" style="color:#0c7492;font-weight:bold">(Auto)</span>':''}</td>
-    <td>${escapeHtml(i.provider)}</td><td>${decimal(i.pct,6)}</td><td>${money(i.value)}</td></tr>`).join('');
-  return `<table class="generation-items-table" aria-label="Itens para NFS-e"><thead><tr><th><input type="checkbox" id="gen-select-all" aria-label="Selecionar todos os itens" ${ids.size===9?'checked':''}></th><th>Itens</th><th>Fornecedor</th><th>% Venda</th><th>Valor</th></tr></thead><tbody>${tbody}</tbody></table>
-    <div class="generation-item-summary"><span>% Selecionado</span><output>${decimal(totalPct,6)}</output><span>Total selec.</span><output>${money(totalSum)}</output></div>
-    <div class="auto-note">Regra definida: ao selecionar os itens 3, 4 e 5, o item 9 é acrescentado automaticamente.</div>`;
+  const ids=selectedItemIds();
+  const values=itemCatalog.map(getItemValue).filter(i=>ids.has(i.id));
+  const pct=values.reduce((s,i)=>s+i.pct,0),total=values.reduce((s,i)=>s+i.value,0);
+  const tbody=itemCatalog.map(base=>{
+    const i=getItemValue(base),isAuto=i.id===9&&autoItem9();
+    return `<tr class="${ids.has(i.id)?'':'muted'} ${isAuto?'is-auto':''}">
+     <td><input type="checkbox" data-gen-item="${i.id}" aria-label="Selecionar item ${i.id}" ${ids.has(i.id)?'checked':''} ${isAuto?'disabled title="Incluído automaticamente"':''}></td>
+     <td>${String(i.id).padStart(2,'0')} - ${escapeHtml(i.name)}${isAuto?' <span class="auto-indicator">(Auto)</span>':''}</td>
+     <td>${escapeHtml(i.provider)}</td>
+     <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="pct" aria-label="Percentual de venda do item ${i.id}" value="${decimal(i.pct,6)}"></td>
+     <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="value" aria-label="Valor do item ${i.id}" value="${money(i.value)}"></td>
+    </tr>`;
+  }).join('');
+  return `<table class="generation-items-table" aria-label="Itens para NFS-e"><thead><tr><th><input type="checkbox" id="gen-select-all" aria-label="Selecionar todos" ${ids.size===9?'checked':''}></th><th>Itens</th><th>Fornecedor</th><th>% Venda</th><th>Valor</th></tr></thead><tbody>${tbody}</tbody></table>
+    <div class="generation-item-summary"><span>% Selecionado</span><output data-summary-pct>${decimal(pct,6)}</output><span>Total selec.</span><output data-summary-value>${money(total)}</output></div>
+    <div class="auto-note">Selecionar os itens 3, 4 e 5 inclui automaticamente o item 9. % Venda e Valor são editáveis independentemente neste protótipo.</div>`;
 }
+const EMITTER_OPTIONS=["DB SERVICOS DE MONTAGENS","DA SERVICOS DE MONTAGENS","G5 SERVICOS DE MONTAGENS","G6 SERVICOS DE MONTAGENS","LA SERVICOS DE MONTAGENS","LB SERVICOS DE MONTAGENS","RA SERVICOS DE MONTAGENS","GABRIEL A - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","KASABELLA ASSESSORIA E SERVICOS LTDA","GABRIEL B - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","GABRIEL C - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","GD - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","D&D A - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","D&D B - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","IN - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","PLANEJA - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","BENTO - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","SALVADOR APOIO ADMINISTRATIVO LTDA","SOUSA APOIO ADMINISTRATIVO LTDA","ED INSTALACAO DE MOVEIS LTDA - ME","PEDREIRA AMARAL INSTALACOES E SERVICOS LTDA","USMARI SERVICOS DE MONTAGEM LTDA","GA LOJA 353 LTDA - GA LOJA 353"];
+const FISCAL_OPTIONS={"ibscbs":["TESTE001 - Teste - Simulado"],"service":["140601 - Instalação e montagem de aparelhos, máquinas e equipamentos"],"iss":["01 - Tributável dentro do município"],"nbs":["101040000 - Serviços de montagem e de edificação de construções pré-fabricadas"]};
 function generationForm(){
-  const v=state.genForm;const row=activeRow();
-  const emitterOptions=['','KA EMPRESA 1 LTDA - LOJA 353','KA EMPRESA 1 LTDA - LOJA 352'].map(x=>`<option ${x===v.emitter?'selected':''} value="${escapeHtml(x)}">${x||'--Selecione--'}</option>`).join('');
-  const optionList=(values,selected)=>values.map(x=>`<option ${x===selected?'selected':''} value="${escapeHtml(x)}">${escapeHtml(x||'--Selecione--')}</option>`).join('');
-  return `<div class="gen-form">
-    <div class="gen-fields"><div class="gen-stack">
-      <label for="gen-emitter">Emitente</label><select id="gen-emitter" data-gen-field="emitter">${emitterOptions}</select>
-      <label for="gen-ibscbs">IBS/CBS</label><select id="gen-ibscbs" data-gen-field="ibscbs">${optionList(['Teste - Simulado','Não aplicável (demonstração)'],v.ibscbs)}</select>
-      <label for="gen-service">Cód. Serviço NFS-e</label><select id="gen-service" data-gen-field="service">${optionList(['--- Não se aplica ---','Configurar serviço para emissão'],v.service)}</select>
-      <label for="gen-iss">Tipo Trib. ISS</label><select id="gen-iss" data-gen-field="iss">${optionList(['--- Não se aplica ---','Tributação no município (exemplo)','Isenção (exemplo)'],v.iss)}</select>
-      <label for="gen-nbs">Item NBS</label><select id="gen-nbs" data-gen-field="nbs">${optionList(['','Item NBS de exemplo A','Item NBS de exemplo B'],v.nbs)}</select>
-    </div><div class="gen-date-field"><label for="gen-date">Dt. Emissão</label><input type="date" id="gen-date" data-gen-field="date" value="${v.date}"></div></div>
-    <div class="gen-text-group"><label for="gen-extra">Informação Adicional:</label><textarea id="gen-extra" data-gen-field="extra">${escapeHtml(v.extra)}</textarea></div>
-    <div class="gen-text-group"><label for="gen-fisco">Informação p/ o fisco:</label><textarea id="gen-fisco" data-gen-field="fisco">${escapeHtml(v.fisco)}</textarea></div>
-    <div class="env-table-container"><table class="env-table"><thead><tr><th><input type="checkbox" id="env-head" ${v.env?'checked':''} aria-label="Selecionar ambiente"></th><th>Opção</th><th>Ambiente</th><th>Total à Vista</th><th>Total a Prazo</th></tr></thead><tbody><tr><td><input type="checkbox" id="env-check" ${v.env?'checked':''}></td><td>AG</td><td>AG</td><td>${money(row.value)}</td><td>${money(row.value)}</td></tr></tbody></table></div>
-    <div class="hint-box">Protótipo de demonstração: opções fiscais exemplificativas. A emissão e a consulta à prefeitura não estão conectadas.</div>
+  const v=state.genForm;
+  const options=(list,selected)=>`<option value="">--Selecione--</option>`+list.map(x=>`<option value="${escapeHtml(x)}" ${x===selected?'selected':''}>${escapeHtml(x)}</option>`).join('');
+  return `<div class="gen-form gen-form-compact">
+  <div class="gen-fields"><div class="gen-stack">
+    <label for="gen-emitter">Emitente</label><select id="gen-emitter" data-gen-field="emitter">${options(EMITTER_OPTIONS,v.emitter)}</select>
+    <label for="gen-ibscbs">IBS/CBS</label><select id="gen-ibscbs" data-gen-field="ibscbs">${options(FISCAL_OPTIONS.ibscbs,v.ibscbs)}</select>
+    <label for="gen-service">Cód. Serviço NFS-e</label><select id="gen-service" data-gen-field="service">${options(FISCAL_OPTIONS.service,v.service)}</select>
+    <label for="gen-iss">Tipo Trib. ISS</label><select id="gen-iss" data-gen-field="iss">${options(FISCAL_OPTIONS.iss,v.iss)}</select>
+    <label for="gen-nbs">Item NBS</label><select id="gen-nbs" data-gen-field="nbs">${options(FISCAL_OPTIONS.nbs,v.nbs)}</select>
+  </div><div class="gen-date-field"><label for="gen-date">Dt. Emissão</label><input type="date" id="gen-date" data-gen-field="date" value="${escapeHtml(v.date)}"></div></div>
+  <div class="gen-text-group"><label for="gen-extra">Informação Adicional:</label><textarea id="gen-extra" data-gen-field="extra">${escapeHtml(v.extra)}</textarea></div>
+  <div class="gen-text-group"><label for="gen-fisco">Informação p/ o fisco:</label><textarea id="gen-fisco" data-gen-field="fisco">${escapeHtml(v.fisco)}</textarea></div>
+  <div class="hint-box">Campos demonstrativos conforme os prints. Códigos e condições fiscais precisam ser validados na integração real; nenhuma NFS-e é emitida por este protótipo.</div>
   </div>`;
 }
 function generationModal(){
-  return modalMarkup('Gerar NFS-e',generationBody(),state.step===1?`${button('Próximo','next')}${button('Fechar','close')}`:`${button('Tributos Federais','open-taxes','tax-inline','layers')}${button('Ok','confirm-generation')}${button('Fechar','close')}`,'generation',generationTabs());
+  const footer=state.step===1?`${button('Próximo','next')}${button('Fechar','close')}`:`${button('Ok','confirm-generation')}${button('Fechar','close')}`;
+  return modalMarkup('Gerar NFS-e',generationBody(),footer,'generation',generationTabs());
 }
-function taxForActive(){const row=activeRow();return state.taxes[row.id]?{...state.taxes[row.id]}:{...taxDefaults};}
+function taxForActive(){const row=activeRow();return state.taxDraft?{...state.taxDraft}:state.taxes[row.id]?{...state.taxes[row.id]}:{...taxDefaults};}
 function taxValue(base,rate){return money(base*rate/100);}
 function taxInput(field,value,disabled=false){return `<input type="text" inputmode="decimal" data-tax-field="${field}" value="${escapeHtml(value)}" ${disabled?'disabled':''}>`;}
 function taxPct(field,val,disabled=false){return taxInput(field,`${decimal(val,2)} %`,disabled);}
@@ -230,6 +270,38 @@ function taxModal(){
     <p class="tax-note">Valores e combos demonstrativos com base nos prints enviados. Na integração real, obedecer às regras e opções do portal da prefeitura.</p>`;
   return modalMarkup('Tributos Federais',taxContent,button('Salvar','save-taxes','','save'),'tax-modal');
 }
+function impostosModal(){
+  const r=activeRow(),t=state.taxes[r.id];
+  if(!t){
+    return modalMarkup('Impostos',`<div class="impostos-empty"><h3>Sem tributos federais salvos</h3><p>Selecione o contrato e preencha <b>Tributos Federais</b>, depois clique em <b>Salvar</b>. Os valores aparecerão aqui para consulta.</p><p>Este painel apresenta dados locais e demonstrativos, não impostos apurados em produção.</p></div>`,button('Fechar','close'),'impostos-modal');
+  }
+  const data=[];
+  const add=(title,base,rate,amount)=>{
+    data.push({title,base,rate,amount});
+  };
+  add('PIS - Ap. Própria',t.base,t.pis,t.base*t.pis/100);
+  add('COFINS - Ap. Própria',t.base,t.cofins,t.base*t.cofins/100);
+  if(t.retention==='3'){
+    add('PIS - Retido',t.base,t.pisRet,t.base*t.pisRet/100);
+    add('COFINS - Retido',t.base,t.cofinsRet,t.base*t.cofinsRet/100);
+    add('CSLL',t.csllBase,t.csllRate,t.csllBase*t.csllRate/100);
+  }
+  if(t.ir)add('IR',t.irBase,t.irRate,t.irBase*t.irRate/100);
+  if(t.cp)add('CP',t.cpBase,t.cpRate,t.cpBase*t.cpRate/100);
+  if(t.other>0)add('Outras Retenções',null,null,t.other);
+  const body=`<div class="impostos-description">Contrato <strong>${escapeHtml(r.contract||r.code)}</strong> · Valores dos <strong>Tributos Federais salvos</strong> nesta sessão (demonstrativos). Campos não aplicáveis exibidos como “—”.</div>
+    <div class="impostos-table-wrap"><table class="impostos-table" aria-label="Impostos federais do contrato"><thead><tr>
+      <th>Cód.</th><th>Imposto</th><th>Mod.</th><th>S.T.</th><th>% Acréscimo</th><th>% Redução</th><th>Valor Base</th><th>Valor Imposto</th><th>% Oper. Prop.</th><th>Valor Oper. Própria</th><th>% Alíquota</th><th>% Imposto</th><th>% Diferimento</th><th>Motivo Desoneração</th><th>Destaca</th>
+    </tr></thead><tbody>${data.map((x,i)=>`<tr>
+      <td>${i+1}</td><td>${escapeHtml(x.title)}</td><td>—</td><td>—</td><td>—</td><td>—</td>
+      <td class="num">${x.base===null?'—':money(x.base)}</td>
+      <td class="num">${money(x.amount)}</td><td>—</td><td>—</td>
+      <td class="num">${x.rate===null?'—':decimal(x.rate,2)}</td><td>—</td><td>—</td><td>—</td><td>—</td>
+    </tr>`).join('')}</tbody></table></div>
+    <p class="impostos-notice">Os valores são calculados exclusivamente para apresentação (base × alíquota / 100); não substituem as regras fiscais da prefeitura.</p>`;
+  return modalMarkup('Impostos',body,button('Fechar','close'),'impostos-modal');
+}
+
 // Manual funcional contextual — nova tela NFS-e.
 // Conteúdo derivado das definições de produto e dos mockups aprovados.
 // As origens técnicas ainda não confirmadas são identificadas explicitamente.
@@ -263,7 +335,6 @@ const HELP_GROUPS = [
         <tr><td><b>DANFSe</b></td><td>Acessar o documento auxiliar da Nota Fiscal de Serviço.</td><td>Abre documento ilustrativo.</td></tr>
         <tr><td><b>Reenviar NFS-e e XML por e-mail</b></td><td>Reenviar os documentos fiscais ao destinatário.</td><td>Somente demonstração; não envia e-mail.</td></tr>
         <tr><td><b>Forçar Nova Consulta</b></td><td>Atualizar a situação dos documentos junto à integração fiscal.</td><td>Atualiza a visualização local.</td></tr>
-        <tr><td><b>Pré-visualizar DANFSe</b></td><td>Consultar o documento auxiliar antes de imprimir.</td><td>Abre prévia ilustrativa.</td></tr>
         <tr><td><b>Cancelar NFS-e</b></td><td>Solicitar cancelamento conforme regras do município ou ambiente nacional aplicável.</td><td>Altera estado local após confirmação.</td></tr>
         <tr><td><b>Inutilizar Número</b></td><td>Comando mantido no desenho, sujeito à confirmação de aplicabilidade para NFS-e.</td><td>Exibe aviso informativo.</td></tr>
         <tr><td><b>Excluir</b></td><td>Remover registros quando a situação e as permissões permitirem.</td><td>Remove apenas da sessão local.</td></tr>
@@ -271,10 +342,11 @@ const HELP_GROUPS = [
         <tr><td><b>Redefinir Valor da NFS-e</b></td><td>Redefinir valor usado no fluxo, observando regras de negócio existentes.</td><td>Atualiza o valor em memória.</td></tr>
         <tr><td><b>Histórico</b></td><td>Consultar movimentações e eventos do registro.</td><td>Exibe histórico ilustrativo.</td></tr>
         <tr><td><b>Tributos Federais</b></td><td>Abrir o cadastro de PIS/COFINS/CSLL, CP, IR e outras retenções.</td><td>Abre formulário com Salvar local.</td></tr>
+        <tr><td><b>Impostos</b></td><td>Consultar em tabela os tributos federais salvos para o contrato, separando apuração própria e retenções.</td><td>Consulta local e somente leitura; não exibe ICMS fictício.</td></tr>
         <tr><td><b>Imprimir</b></td><td>Imprimir os documentos disponíveis.</td><td>Aciona a impressão do navegador.</td></tr>
         <tr><td><b>Ajuda</b></td><td>Abrir este manual funcional da tela NFS-e.</td><td>Manual navegável e pesquisável.</td></tr>
       </tbody></table></div>
-      <div class="help-notice"><b>Ordem e posicionamento:</b> <b>Ver selecionados</b> vem antes de <b>Gerar NFS-e</b>; <b>Tributos Federais</b> fica após <b>Histórico</b>; <b>Imprimir</b> e <b>Ajuda</b> permanecem no fim da barra, com espaçamento uniforme.</div>
+      <div class="help-notice"><b>Ordem e posicionamento:</b> <b>Ver selecionados</b> vem antes de <b>Gerar NFS-e</b>; <b>Tributos Federais</b> e <b>Impostos</b> ficam após <b>Histórico</b>; <b>Imprimir</b> e <b>Ajuda</b> permanecem no fim da barra, com espaçamento uniforme.</div>
     `
   },
   {
@@ -286,6 +358,7 @@ const HELP_GROUPS = [
         <tr><td><b>Loja</b></td><td>Restringe os registros à loja selecionada.</td></tr>
         <tr><td><b>Status</b></td><td>Filtra pela situação do documento fiscal. Use <b>--Todos--</b> para consultar todas as situações. O protótipo apresenta dados fictícios inicialmente em <b>Não Geradas</b>.</td></tr>
         <tr><td><b>Itens</b></td><td>Seleciona um item específico do contrato ou todos; ao escolher o <b>Item 7</b> ativa a trava especial de montagem.</td></tr>
+        <tr><td><b>FIN</b></td><td>--Todos--; Aberto - Todos; Aberto - Não enviado; Aberto - Enviado sem fin; Fechado - Enviado com fin; Em substituição. No protótipo, são situações fictícias para filtro, independentes do indicador Fin Processado.</td></tr>
         <tr><td><b>Buscar por</b></td><td>Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente.</td></tr>
         <tr><td><b>Período</b></td><td>Define a abrangência temporal da pesquisa.</td></tr>
         <tr><td><b>Filtrar Por</b></td><td>Indica a data usada como referência da consulta; o protótipo oferece Data Venda, Data Término de Montagem e Data Término Liberação Futura.</td></tr>
@@ -348,24 +421,22 @@ const HELP_GROUPS = [
     subtitle:'As duas etapas de Gerar Nota Serviço.',
     html:`
       <h2>Fluxo do botão Gerar NFS-e</h2><p>O botão <b>Gerar NFS-e</b> fica imediatamente após <b>Ver selecionados</b>. A janela segue as duas telas da funcionalidade Gerar Nota Serviço já utilizadas no sistema.</p>
-      <div class="help-step"><b>Etapa 1</b><div><h3>Selecionar itens</h3><p>Apresenta a relação de itens do contrato com colunas <b>Itens</b>, <b>Fornecedor</b>, <b>% Venda</b> e <b>Valor</b>. Permite selecionar ou desmarcar os itens pertinentes, inclusive a regra automática do item 9.</p><p><b>Rodapé da etapa:</b> <b>% Selecionado</b> e <b>Total selec.</b> calculados com base nos itens marcados. <b>Próximo</b> avança para os dados de emissão; <b>Fechar</b> encerra a janela.</p></div></div>
+      <div class="help-step"><b>Etapa 1</b><div><h3>Selecionar itens</h3><p>Apresenta a relação de itens do contrato com colunas <b>Itens</b>, <b>Fornecedor</b>, <b>% Venda</b> e <b>Valor</b>. Permite selecionar ou desmarcar itens, editar <b>% Venda</b> e <b>Valor</b> individualmente e aplicar a inclusão automática do item 9. Os dois valores são independentes (a alteração de um não recalcula o outro sem regra de negócio aprovada).</p><p><b>Rodapé da etapa:</b> <b>% Selecionado</b> e <b>Total selec.</b> calculados com base nos itens marcados. <b>Próximo</b> avança para os dados de emissão; <b>Fechar</b> encerra a janela.</p></div></div>
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Item</th><th>Descrição</th></tr></thead><tbody>
         <tr><td>01</td><td>Produto</td></tr><tr><td>02</td><td>Transporte/Armazenamento</td></tr><tr><td>03</td><td>Coordenação</td></tr><tr><td>04</td><td>Supervisão de Montagem</td></tr><tr><td>05</td><td>Instalação/Assistência</td></tr><tr><td>06</td><td>Layout/Medição/Conferência</td></tr><tr><td>07</td><td>Contratado - Franquia</td></tr><tr><td>08</td><td>Financeira</td></tr><tr><td>09</td><td>Reserva (inclusão automática na combinação 3, 4 e 5)</td></tr>
       </tbody></table></div>
       <div class="help-step"><b>Etapa 2</b><div><h3>Gerar Nota Fiscal de Serviço</h3><p>Após <b>Próximo</b>, exibir os dados necessários à preparação da nota, conforme o mockup de referência.</p>
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Campo</th><th>Finalidade</th></tr></thead><tbody>
-        <tr><td>Emitente</td><td>Selecionar o prestador/loja responsável pela emissão.</td></tr>
+        <tr><td>Emitente</td><td>Selecionar entre os emitentes do print de referência (exemplo: LB SERVICOS DE MONTAGENS).</td></tr>
         <tr><td>Dt. Emissão</td><td>Informar data da emissão.</td></tr>
-        <tr><td>IBS/CBS</td><td>Selecionar configuração relacionada aos novos tributos, conforme integração.</td></tr>
-        <tr><td>Cód. Serviço NFS-e</td><td>Informar classificação municipal do serviço.</td></tr>
-        <tr><td>Tipo Trib. ISS</td><td>Selecionar tratamento tributário do ISS.</td></tr>
-        <tr><td>Item NBS</td><td>Informar classificação NBS do serviço.</td></tr>
+        <tr><td>IBS/CBS</td><td>Exemplo parametrizado: TESTE001 - Teste - Simulado; código demonstrativo, sujeito à integração.</td></tr>
+        <tr><td>Cód. Serviço NFS-e</td><td>140601 - Instalação e montagem de aparelhos, máquinas e equipamentos.</td></tr>
+        <tr><td>Tipo Trib. ISS</td><td>01 - Tributável dentro do município.</td></tr>
+        <tr><td>Item NBS</td><td>101040000 - Serviços de montagem e de edificação de construções pré-fabricadas.</td></tr>
         <tr><td>Informação Adicional</td><td>Texto adicional apresentado no documento, quando aplicável.</td></tr>
         <tr><td>Informação p/ o fisco</td><td>Observações destinadas ao fisco, quando aplicável.</td></tr>
-        <tr><td>Opção / Ambiente</td><td>Seleção do ambiente/forma conforme configuração exibida na tela.</td></tr>
-        <tr><td>Total à Vista / Total a Prazo</td><td>Valores associados à opção/ambiente apresentado.</td></tr>
-      </tbody></table></div><p><b>Botões:</b> <b>Tributos Federais</b> abre o formulário fiscal; <b>Ok</b> confirma a preparação; <b>Fechar</b> encerra a janela.</p></div></div>
-      <div class="help-notice"><b>No protótipo:</b> Emitente, NBS e ambiente são validados antes da confirmação. <b>Ok não transmite</b> documentos; o botão Transmitir da tela principal representa a etapa própria de transmissão.</div>
+      </tbody></table></div><p><b>Botões:</b> <b>Ok</b> confirma a preparação simulada; <b>Fechar</b> encerra. O botão Tributos Federais fica somente na barra principal. A segunda etapa não contém a grade de ambientes nem combo adicional de itens.</p></div></div>
+      <div class="help-notice"><b>No protótipo:</b> Emitente, IBS/CBS, código de serviço, tipo ISS, NBS e data são validados antes da confirmação. <b>Ok não transmite</b> documentos; o botão Transmitir da tela principal representa a etapa própria de transmissão.</div>
     `
   },
   {
@@ -394,6 +465,16 @@ const HELP_GROUPS = [
     `
   },
   {
+    id:'impostos', title:'Impostos', icon:'layers', kicker:'08 · Consulta tributária',
+    subtitle:'Conferência dos tributos federais salvos por contrato.',
+    html:`
+      <h2>Janela Impostos</h2>
+      <p>Ao lado de <b>Tributos Federais</b>, o botão <b>Impostos</b> abre uma tabela apenas para consulta. A lista considera o contrato selecionado e os valores efetivamente <b>salvos</b> no formulário de Tributos Federais durante a sessão.</p>
+      <ul class="help-bullets"><li>Exibe PIS e COFINS de apuração própria, suas retenções quando configuradas, CSLL, IR, CP e outras retenções quando aplicáveis.</li><li>Exibe base de cálculo, alíquota e valor calculado demonstrativamente com base × alíquota / 100.</li><li>Colunas como Mod., S.T., desoneração e destaque ficam com <b>—</b> quando não se aplicam aos dados disponíveis, sem inventar informações de ICMS.</li><li>Sem tributos salvos, mostra um aviso em vez de criar valores fiscais fictícios.</li><li>Fechar a janela não altera os tributos; reabrir mostra a última configuração salva enquanto a página estiver carregada.</li></ul>
+      <div class="help-notice help-warning">Essa visualização não realiza apuração oficial e não substitui o cálculo ou o leiaute exigidos pela prefeitura.</div>
+    `
+  },
+  {
     id:'totals', title:'Totalizadores e rodapé', icon:'filter', kicker:'08 · Indicadores',
     subtitle:'O que soma cada indicador e como é calculado.',
     html:`
@@ -413,7 +494,7 @@ const HELP_GROUPS = [
     subtitle:'Botões, combos e tipos de venda excluídos.',
     html:`
       <h2>Elementos retirados da tela NFS-e</h2><p>A interface deve ficar exclusiva para Nota Fiscal de Serviço, sem misturar ações pertinentes apenas à NF-e.</p>
-      <h3>Botões removidos</h3><div class="help-chip-list"><span>Gerar Nota</span><span>Dados NF-e</span><span>Volumes</span><span>Mensagens</span><span>Gerar Devolução</span><span>Gerar Nota Avulsa</span><span>Logs Rece. Federal</span><span>CC-e</span><span>Aplicar Desconto</span><span>Alt. Cliente</span></div>
+      <h3>Botões removidos</h3><div class="help-chip-list"><span>Gerar Nota</span><span>Dados NF-e</span><span>Volumes</span><span>Mensagens</span><span>Gerar Devolução</span><span>Gerar Nota Avulsa</span><span>Logs Rece. Federal</span><span>CC-e</span><span>Aplicar Desconto</span><span>Alt. Cliente</span><span>Pré-visualizar DANFSe</span></div>
       <p><b>Observação:</b> o comando antigo <b>Gerar Nota</b> foi substituído no novo fluxo pelo botão específico <b>Gerar NFS-e</b>.</p>
       <h3>Combos removidos</h3><div class="help-chip-list"><span>Natureza da Operação</span><span>Entrada/Saída</span><span>Tipo Nota</span><span>Tipo de Contrato</span></div>
       <h3>Tipos de venda retirados da pesquisa</h3><div class="help-chip-list"><span>AT Com Custo</span><span>AT Sem Custo</span></div>
@@ -447,8 +528,8 @@ const HELP_GROUPS = [
     subtitle:'O que já funciona e o que é demonstrativo.',
     html:`
       <h2>O que esta demonstração representa</h2><p>O protótipo foi construído para validar o fluxo funcional e a proposta visual com a equipe, incluindo a apresentação à Carla.</p>
-      <div class="help-two-cols"><div class="help-info-card"><h4>Disponível nesta versão</h4><ul class="help-bullets"><li>Busca, filtros e seleção de contratos.</li><li>Janela Gerar NFS-e em duas etapas.</li><li>Inclusão automática do item 9.</li><li>Exceção do Item 7.</li><li>Tributos Federais com Salvar local.</li><li>Histórico, prévias e outras ações ilustrativas.</li><li>Manual funcional integrado à Ajuda.</li></ul></div><div class="help-info-card"><h4>Não integrado</h4><ul class="help-bullets"><li>Banco de dados e autenticação do eFinance.</li><li>Consultas reais aos módulos de origem.</li><li>Emissão, autorização e cancelamento fiscal.</li><li>APIs municipais/nacionais e TecnoSpeed.</li><li>Regras tributárias homologadas.</li><li>Envio de e-mails e documentos oficiais.</li><li>Persistência permanente dos tributos.</li></ul></div></div>
-      <h3>Roteiro sugerido para a apresentação</h3><ol class="help-numbered"><li>Apresentar os filtros, as novas colunas e as quatro somatórias.</li><li>Selecionar um contrato e abrir <b>Gerar NFS-e</b>.</li><li>Demonstrar a seleção 3 + 4 + 5 e a inclusão automática do 9.</li><li>Avançar até o formulário de emissão e abrir <b>Tributos Federais</b>.</li><li>Mostrar os combos, retenções e <b>Salvar</b>.</li><li>Voltar à listagem, selecionar o <b>Item 7</b> e mostrar o bloqueio quando a montagem está vazia.</li><li>Abrir <b>Ajuda</b> para revisar decisões aprovadas e pendências.</li></ol>
+      <div class="help-two-cols"><div class="help-info-card"><h4>Disponível nesta versão</h4><ul class="help-bullets"><li>Busca, filtros e seleção de contratos.</li><li>Janela Gerar NFS-e em duas etapas.</li><li>Inclusão automática do item 9.</li><li>Exceção do Item 7.</li><li>Tributos Federais com Salvar local e Impostos em leitura.</li><li>Filtro FIN e edição de percentuais e valores por item.</li><li>Histórico, DANFSe e outras ações ilustrativas.</li><li>Manual funcional integrado à Ajuda.</li></ul></div><div class="help-info-card"><h4>Não integrado</h4><ul class="help-bullets"><li>Banco de dados e autenticação do eFinance.</li><li>Consultas reais aos módulos de origem.</li><li>Emissão, autorização e cancelamento fiscal.</li><li>APIs municipais/nacionais e TecnoSpeed.</li><li>Regras tributárias homologadas.</li><li>Envio de e-mails e documentos oficiais.</li><li>Persistência permanente dos tributos.</li></ul></div></div>
+      <h3>Roteiro sugerido para a apresentação</h3><ol class="help-numbered"><li>Apresentar os filtros, as novas colunas e as quatro somatórias.</li><li>Selecionar um contrato e abrir <b>Gerar NFS-e</b>.</li><li>Demonstrar a seleção 3 + 4 + 5 e a inclusão automática do 9.</li><li>Avançar até o formulário de emissão e conferir Emitente, códigos e Item NBS.</li><li>Na barra principal, abrir <b>Tributos Federais</b>.</li><li>Mostrar os combos, retenções e <b>Salvar</b>. Depois abrir <b>Impostos</b> e confirmar os mesmos valores salvos.</li><li>Voltar à listagem, selecionar o <b>Item 7</b> e mostrar o bloqueio quando a montagem está vazia.</li><li>Abrir <b>Ajuda</b> para revisar decisões aprovadas e pendências.</li></ol>
       <div class="help-notice help-warning"><b>Uso demonstrativo:</b> nomes, dados, valores, arquivos e processos desta interface são exemplos. Ações locais não significam que a operação foi executada no ambiente de produção.</div>
     `
   }
@@ -498,12 +579,12 @@ function simpleModal(){
 }
 function renderModal(){
   if(!state.modal){closeModal();return;}
-  root.innerHTML=state.modal==='generation'?generationModal():state.modal==='tax'?taxModal():state.modal==='help'?helpModal():simpleModal();
+  root.innerHTML=state.modal==='generation'?generationModal():state.modal==='tax'?taxModal():state.modal==='impostos'?impostosModal():state.modal==='help'?helpModal():simpleModal();
   const close=root.querySelector('.modal-close');if(close)close.focus({preventScroll:true});
 }
 function saveTaxes(){
   const t=taxForActive();
-  if(t.base<0||t.pis<0||t.cofins<0||t.other<0){toast('Preencha valores válidos, sem números negativos.','error');return;}
+  if(['base','pis','cofins','pisRet','cofinsRet','csllBase','csllRate','cpBase','cpRate','irBase','irRate','other'].some(k=>!Number.isFinite(t[k])||t[k]<0)){toast('Preencha valores válidos e não negativos.','error');return;}
   const row=activeRow();state.taxes[row.id]={...t};closeModal();toast(`Tributos Federais salvos no protótipo para o contrato ${row.contract||row.code}.`);
 }
 function modalAction(action){
@@ -511,13 +592,13 @@ function modalAction(action){
  if(action==='tab-items'){state.step=1;renderModal();return;}
  if(action==='tab-data'){if(selectedItemIds().size){state.step=2;renderModal();}else toast('Selecione ao menos um item.','warning');return;}
  if(action==='next'){if(!selectedItemIds().size){toast('Selecione ao menos um item para continuar.','warning');return;}state.step=2;renderModal();return;}
- if(action==='open-taxes'){state.taxReturn='generation';state.modal='tax';renderModal();return;}
  if(action==='save-taxes'){saveTaxes();return;}
  if(action==='confirm-generation'){
    if(!state.genForm.emitter){toast('Selecione o Emitente para continuar.','warning');$('gen-emitter').focus();return;}
-   if(!state.genForm.nbs){toast('Selecione o Item NBS para continuar.','warning');$('gen-nbs').focus();return;}
-   if(!state.genForm.env){toast('Selecione pelo menos um ambiente.','warning');return;}
+   if(!state.genForm.ibscbs||!state.genForm.service||!state.genForm.iss||!state.genForm.nbs||!state.genForm.date){toast('Preencha IBS/CBS, Cód. Serviço NFS-e, Tipo Trib. ISS, Item NBS e a data de emissão.','warning');return;}
    const r=activeRow();r.sentItems=[...selectedItemIds()].sort((a,b)=>a-b).map(id=>String(id).padStart(2,'0'));
+   r.generatedItems=itemCatalog.map(getItemValue).filter(i=>selectedItemIds().has(i.id)).map(i=>({id:i.id,pct:i.pct,value:i.value}));
+   r.generationParameters={...state.genForm};
    r.status='Nao Gerada';closeModal();renderTable();toast(`NFS-e preparada para demonstração: itens ${r.sentItems.join(', ')}. Nenhuma nota foi transmitida.`);return;
  }
  if(action==='save-redefine'){
@@ -526,11 +607,11 @@ function modalAction(action){
  }
 }
 function updateTaxesFromInputs(field,raw){
-  const target=activeRow();const t=state.taxes[target.id]?{...state.taxes[target.id]}:{...taxDefaults};
+  const t=taxForActive();
   if(field==='situation'||field==='retention')t[field]=raw;
   else if(field==='cp'||field==='ir')t[field]=Boolean(raw);
   else {if(!/^(?:\s*[\d.,]+\s*%?\s*)$/.test(raw)){toast('Use números no formato 1.000,00 ou 0,65 %.','warning');renderModal();return;}t[field]=parseNumber(raw.replace('%',''));}
-  state.taxes[target.id]=t;renderModal();
+  state.taxDraft=t;renderModal();
 }
 function setGenerationItem(id,checked){
   if(id===9&&autoItem9())return;
@@ -542,6 +623,7 @@ function onGlobalAction(action,el){
     case 'selected':state.selectedOnly=!state.selectedOnly;state.page=1;renderTable();return;
     case 'generate':demoTarget(true);state.itemSelection=new Set([3,4,5]);state.step=1;openModal('generation');return;
     case 'tax':demoTarget(false);openModal('tax');return;
+    case 'impostos':demoTarget(false);openModal('impostos');return;
     case 'transmit':toast('Transmitir: ação demonstrativa, sem comunicação com a prefeitura.','warning');return;
     case 'resend':toast('Reenvio de NFS-e e XML: simulado; nenhum e-mail foi enviado.','warning');return;
     case 'refresh':renderTable();toast('Consulta da listagem atualizada localmente.');return;
@@ -569,7 +651,7 @@ function onGlobalAction(action,el){
     case 'last-page':state.page=Math.max(1,Math.ceil(getFilteredRows().length/state.pageSize));renderTable();return;
     case 'apply-filter':state.page=1;renderTable();toast('Filtros aplicados à listagem de demonstração.');return;
     case 'print':window.print();return;
-    case 'history':case 'preview':case 'danfse':case 'redefine':case 'help':openModal(action);return;
+    case 'history':case 'danfse':case 'redefine':case 'help':openModal(action);return;
     case 'menu':case 'favorites':case 'info':case 'messages':case 'calendar':case 'global-search':case 'home':toast('Comando do cabeçalho ilustrativo — sem navegação externa.','warning');return;
   }
 }
@@ -580,6 +662,10 @@ function bindEvents(){
    const a=e.target.closest('[data-action]');if(a){onGlobalAction(a.dataset.action,a);return;}
    if(e.target.classList.contains('modal-backdrop')){closeModal();return;}
  });
+ document.addEventListener('input',e=>{
+   const el=e.target;
+   if(el.matches('[data-gen-item-value]'))changeItemValue(Number(el.dataset.genItemValue),el.dataset.genValueKey,el.value,false);
+ });
  document.addEventListener('change',e=>{
    const el=e.target;
    if(el.matches('[data-select-row]')){chooseRow(el.dataset.selectRow,el.checked);return;}
@@ -587,6 +673,7 @@ function bindEvents(){
      const list=getFilteredRows().slice((state.page-1)*state.pageSize,state.page*state.pageSize);
      let blocked=0;list.forEach(r=>{if(isRowLocked(r)){blocked++;return;}if(el.checked)state.selected.add(r.id);else state.selected.delete(r.id);});renderTable();if(blocked&&state.filterItem==='7')toast(`${blocked} registro(s) sem montagem concluída não puderam ser selecionados.`,'warning');return;
    }
+   if(el.matches('[data-gen-item-value]')){changeItemValue(Number(el.dataset.genItemValue),el.dataset.genValueKey,el.value,true);return;}
    if(el.matches('[data-gen-item]')){setGenerationItem(Number(el.dataset.genItem),el.checked);return;}
    if(el.id==='gen-select-all'){
      state.itemSelection=el.checked?new Set(itemCatalog.map(i=>i.id)):new Set();renderModal();return;
@@ -595,16 +682,17 @@ function bindEvents(){
    if(el.matches('[data-tax-select]')){updateTaxesFromInputs(el.dataset.taxSelect,el.value);return;}
    if(el.matches('[data-tax-check]')){updateTaxesFromInputs(el.dataset.taxCheck,el.checked);return;}
    if(el.matches('[data-tax-field]')){const k=el.dataset.taxField;if(k!=='_readonly')updateTaxesFromInputs(k,el.value);return;}
-   if(el.id==='env-head'||el.id==='env-check'){state.genForm.env=el.checked;const c=$('env-check'),h=$('env-head');if(c)c.checked=el.checked;if(h)h.checked=el.checked;return;}
+
    if(el.id==='loja')state.filterStore=el.value;
-   if(el.id==='status')state.filterStatus=el.value==='Nao Gerada'?'Nao Gerada':el.value;
+   if(el.id==='status')state.filterStatus=el.value;
+   if(el.id==='fin-filter')state.filterFin=el.value;
    if(el.id==='item-filter'){state.filterItem=el.value;resetSelectionOnItemChange();}
    if(el.id==='search-type')state.searchType=el.value;
    if(el.id==='start-date')state.searchStart=el.value;
    if(el.id==='end-date')state.searchEnd=el.value;
    if(el.id==='date-field')state.searchField=el.value;
    if(el.id==='periodo')state.period=el.value;
-   if(['loja','status','item-filter'].includes(el.id)){state.page=1;renderTable();}
+   if(['loja','status','fin-filter','item-filter'].includes(el.id)){state.page=1;renderTable();}
  });
  $('search-input').addEventListener('input',e=>{state.search=e.target.value.trim();state.page=1;renderTable()});
  $('search-input').addEventListener('keydown',e=>{if(e.key==='Enter'){state.page=1;renderTable();}});

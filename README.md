@@ -26,6 +26,18 @@ A entrada da aplicação é `index.html`. O projeto utiliza `styles.css`, `app.j
 - `MANUAL_FUNCIONAL_NFSE.md` — documentação completa que também aparece no botão Ajuda.
 - `MAPEAMENTO_INTERACOES.md` — lista das ações de interface e regras simuladas.
 
+## Alterações aprovadas na apresentação
+
+- Edição independente de **% Venda** e **Valor** na primeira etapa de Gerar NFS-e, recalculando os somatórios da seleção.
+- Listagem de emitentes de referência e exemplos com código e descrição para IBS/CBS, Serviço NFS-e, ISS e NBS na segunda etapa.
+- Remoção da grade de ambientes e do atalho de Tributos Federais da segunda etapa. **Tributos Federais** permanece na barra superior.
+- Remoção do botão **Pré-visualizar DANFSe** da barra.
+- Filtro **FIN**, com as seis opções do print de referência, mantendo o filtro **Itens** para a regra especial do Item 7.
+- Botão **Impostos** ao lado de **Tributos Federais**, exibindo em leitura os valores salvos por contrato no formulário de tributos.
+- Manual interativo **Ajuda** e documentação de apoio atualizados.
+
+Os estados FIN e os dados da emissão são ilustrativos; nenhuma comunicação fiscal ocorre. O estado é mantido em memória e reinicia quando a página é recarregada.
+
 ## Funcionalidades demonstradas
 
 - Filtros, seleção de contratos, tabela e totalizadores.
