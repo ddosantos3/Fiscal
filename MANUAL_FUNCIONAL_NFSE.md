@@ -48,20 +48,33 @@ O protótipo usa dados e CPF/CNPJ fictícios. FIN, regras de autorização, tabe
 
 ## 4. Colunas e fontes funcionais
 
-| Coluna atual | Informação / origem esperada |
-|---|---|
-| Empresa / Loja | Código empresarial e estabelecimento cadastrados. |
-| Cód. Cliente / Cliente-Tomador | Código e nome do tomador; CPF/CNPJ disponível no cadastro para filtro Pessoa (tooltip fictício no protótipo). |
-| Tipo de Venda / Contrato | Modalidade e número contratual do módulo Comercial. |
-| Status NFS-e | Estado individual do item selecionado: Gerada, Não Gerada, Pendente de Transmissão, Cancelada ou Arquivada. |
-| Data da Venda | Data comercial registrada na venda. |
-| Pedidos / Valor da Venda | Identificador dos pedidos e valor comercial do contrato. |
-| Itens da NFS-e | Código e descrição completa de cada item preparado/enviado. |
-| Data Término de Montagem | Data de montagem concluída no **Pós-Venda**, apenas DD/MM/AAAA. |
-| Data Término Liberação Futura | Campo **Término Lib.** de **Gerenciamento de Contratos Futuros**, apenas DD/MM/AAAA. |
-| FIN Processado | Situação/data-hora da tela **Comercial > Contratos Realizados**, com check ou alerta e tooltip. |
+Todas as **14 colunas** da grid exibem um tooltip nativo ao pousar o mouse sobre o **título da coluna**. A nomenclatura foi mantida conforme a definição funcional, incluindo as abreviações. As três telas de origem abaixo são **referências para o desenvolvedor localizar as informações**; não constituem identificação confirmada de tabelas, campos SQL ou procedures.
 
-Cabeçalhos e rótulos foram revisados; o nome físico das tabelas, joins e campos SQL continua pendente de mapeamento técnico.
+| Coluna exibida | Tooltip do título | Informação apresentada / referência funcional |
+|---|---|---|
+| Emp | Código da empresa | Código da empresa vinculada ao contrato. |
+| Loja | Código da loja | Código da loja vinculada ao contrato. |
+| Cód. | Código | Código cadastral do cliente. |
+| Cliente | Nome do cliente | Nome do tomador/cliente do contrato; cadastro do cliente. |
+| Tipo Venda | Tipo de Venda | Classificação da venda no Comercial. |
+| Contrato | Número do contrato | Identificador do contrato registrado no Comercial. |
+| Status | Status da Nota | Situação da NFS-e para o item selecionado no filtro. |
+| Data Venda | Data da Venda | Data comercial do registro da venda. |
+| Pedidos | Número dos Pedidos | Números dos pedidos vinculados ao contrato. |
+| Valor Venda | Valor da Venda | Valor financeiro/comercial da venda. |
+| Itens Enviados P/ gerar NFS-e | Itens enviados para gerar NFS-e, com código e descrição | Código e descrição dos itens preparados/enviados por contrato. |
+| **Térm.Prog.** | **Data do término da Programação** | Data de término da montagem/programação, proveniente da tela **Gerenciamento de Montagem/Assist. Técnica**. Apresentar em DD/MM/AAAA, sem horário. |
+| **Término Lib.** | **Data término do processo de liberação** | Data de término da liberação, proveniente de **Comercial > Gerenciamento de Contratos Futuros**. Apresentar em DD/MM/AAAA, sem horário. |
+| **F.P.** | **Status do processo de finalização** | Indicador de FIN processado, com check ou alerta, proveniente de **Comercial > Contratos Realizados**. O tooltip da **célula** mantém a data/hora em que o FIN foi concluído, quando disponível. |
+
+### Referências obrigatórias para busca de informações
+
+1. **Gerenciamento de Montagem/Assist. Técnica:** consultar a origem da data de término da programação/montagem para **Térm.Prog.**.
+2. **Comercial > Contratos Realizados:** consultar o processo de finalização financeira, seu status e data/hora, para **F.P.**.
+3. **Comercial > Gerenciamento de Contratos Futuros:** consultar a data de término da liberação para **Término Lib.**.
+
+As demais colunas devem continuar utilizando suas origens cadastrais, comerciais e fiscais já existentes. A equipe de desenvolvimento precisa identificar os campos/tabelas reais, o vínculo empresa/loja/contrato e os critérios de dados ausentes. **A alteração de nomenclatura não modifica as regras de seleção, filtragem, lote, renegociação ou tributação já aprovadas.**
+
 
 ## 5. Seleção e Item 07
 
@@ -122,5 +135,6 @@ Somar valores monetários em centavos para evitar imprecisão. Os 16 registros d
 7. Filtros de data, Pessoa e Item implementados; Excluir removido e Arquivar Nota presente.
 8. Transmitir com Item 07 exige revisão tributária; sem 07, não exige.
 9. Ajuda e manual sincronizados; preservar testes de filtros, seleção, tributos e cálculos.
+10. Conferir os 14 títulos e tooltips da grid, preservar as datas em DD/MM/AAAA e validar as referências de origem em Gerenciamento de Montagem/Assist. Técnica, Comercial > Contratos Realizados e Comercial > Gerenciamento de Contratos Futuros.
 
 **Pendente para produção:** regra real do FIN/Item 07; tipos e dados de cliente; seleção em lote versus restrição de CNPJ; eventos e retornos reais de prefeitura; persistência por item/documento; autorização, cancelamento, segurança, concorrência, auditoria, integração e homologação tributária.
