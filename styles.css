@@ -426,3 +426,17 @@
 @media(max-width:1180px){
   .totals-bar{flex-wrap:wrap;justify-content:flex-end;min-height:58px;height:auto;row-gap:5px}
 }
+
+
+/* Revisão funcional NFS-e – lote, renegociação, filtros FIN e CPF/CNPJ. */
+.tool-btn:disabled{opacity:.48;cursor:not-allowed;pointer-events:none;box-shadow:none;background:#eef2f7}
+.filter-line{flex-wrap:wrap;column-gap:7px;row-gap:4px}
+.filter-line #fin-filter,.filter-line #person-filter{width:156px;margin-right:5px}
+.filter-line #item-filter{width:200px}
+.filter-line #status{width:194px}
+.generation-batch-info{background:#edf6ff;border:1px solid #c9ddf2;border-radius:4px;color:#14517a;padding:8px 10px;font-size:11px;margin:0 0 8px}
+.gen-editable:disabled{color:#294a69;opacity:1;background:#e9f0f7;border-color:#ccd8e5;cursor:default}
+.generation-items-table .gen-editable[title]{cursor:help}
+.generation-items-table tr.muted .gen-editable:disabled{color:#7690a6}
+@media(min-width:1750px){.toolbar{flex-wrap:nowrap;gap:3px}.toolbar-main{flex:0 1 auto}.toolbar-group{gap:3px}.tool-btn{font-size:10.5px;padding:4px 5px;gap:3px}.tool-btn svg{width:13px;height:13px}.toolbar-secondary{margin-left:auto}}
+@media(max-width:1749px){.toolbar-main{flex:1 1 auto}.toolbar-secondary{flex:1 1 auto}}

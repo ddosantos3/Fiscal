@@ -58,9 +58,20 @@ const rows = [
   ['32264','João Victor Cardoso','Curto Prazo','3531367','11/11/2026','0-0',1285000.00,'12/11/2026','13/11/2026',353],
   ['20396','Maria Eduarda Fonseca','Normal','3531364','11/11/2026','595173-595173',2600.00,'12/11/2026','13/11/2026',353]
 ].map((r,i)=>({id:`demo-${i+1}`,emp:1,code:r[0],client:r[1],saleType:r[2],contract:r[3],saleDate:r[4],orders:r[5],value:r[6],montage:r[7],future:r[8],store:r[9],status:'Nao Gerada',fin:i!==6,finDate:i===6?'':'11/11/2026 23:41:08',sentItems:[]}));
-// Fases FIN fictícias para demonstrar o filtro; independentes do indicador "Fin Processado".
-const FIN_DEMO_STATUS=["Aberto - Não enviado","Aberto - Enviado sem fin","Fechado - Enviado com fin","Fechado - Enviado com fin","Aberto - Não enviado","Fechado - Enviado com fin","Em substituição","Aberto - Enviado sem fin","Fechado - Enviado com fin","Fechado - Enviado com fin","Aberto - Não enviado","Fechado - Enviado com fin","Fechado - Enviado com fin","Em substituição","Aberto - Enviado sem fin","Fechado - Enviado com fin"];
-rows.forEach((r,i)=>{r.finStage=FIN_DEMO_STATUS[i]||'Aberto - Não enviado';});
+// Demonstração: CPF/CNPJ fictícios para validar regras PF/PJ.
+const DEMO_DOC_TYPES=['PF','PJ','PF','PF','PJ','PF','PF','PF','PJ','PF','PF','PJ','PF','PF','PJ','PF'];
+rows.forEach((r,i)=>{
+ r.docId=DEMO_DOC_TYPES[i]==='PJ'?('00000000000000'+(i+1)).slice(-14):('00000000000'+(i+1)).slice(-11);
+ r.finStage=r.fin?'Fechado':'Aberto';
+ r.itemStatus=Object.fromEntries([1,2,3,4,5,6,7,8,9].map(id=>[id,'Nao Gerada']));
+ r.issuedItems=[];r.issueDate='';
+});
+// Uma linha com FIN feito sem liberação futura demonstra a trava provisória do Item 07.
+rows[8].future='';
+const FIN_PROFILE_DEFAULTS={carla:'Fechado',other:'Aberto'};
+const COMPANY_PROFILE=document.body.dataset.companyProfile||'other';
+const INITIAL_FIN=window.NFSE_COMPANY_CONFIG?.defaultFin||FIN_PROFILE_DEFAULTS[COMPANY_PROFILE]||'Aberto';
+// O padrão de FIN fora da empresa Carla é configurável e depende da regra de negócio.
 const itemCatalog=[
   {id:1,name:'Produto',provider:'FA FORNECEDOR',pct:29.448836,value:137.85},
   {id:2,name:'Transporte/Armazenamento',provider:'M. FORNECEDOR 3 T 1',pct:2.651357,value:12.41},
@@ -84,7 +95,7 @@ function describeSentItem(code){
   return item?`${String(item.id).padStart(2,'0')} - ${item.name}`:String(code);
 }
 const taxDefaults={situation:'01',retention:'3',pis:0.65,cofins:3,pisRet:0.65,cofinsRet:3,csllRate:1,cp:false,cpRate:0,ir:true,irRate:1.5,other:0};
-const state={selected:new Set(),page:1,pageSize:16,selectedOnly:false,modal:null,taxReturn:null,taxDraft:null,generationLogs:[],logPage:1,logPageSize:10,logBatchSequence:2,step:1,activeRow:null,itemSelection:new Set([3,4,5]),itemEdits:{},taxes:{},genForm:{emitter:'LB SERVICOS DE MONTAGENS',date:today,ibscbs:'TESTE001 - Teste - Simulado',service:'140601 - Instalação e montagem de aparelhos, máquinas e equipamentos',iss:'01 - Tributável dentro do município',nbs:'101040000 - Serviços de montagem e de edificação de construções pré-fabricadas',extra:'(1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Documento emitido por ME ou EPP optante pelo Simples Nacional;',fisco:'',env:true},search:'',searchType:'client',searchStart:'',searchEnd:'',searchField:'saleDate',filterItem:'',filterStore:'',filterStatus:'Nao Gerada',filterFin:'',period:'3'};
+const state={selected:new Set(),page:1,pageSize:16,selectedOnly:false,modal:null,taxReturn:null,taxDraft:null,generationLogs:[],logPage:1,logPageSize:10,logBatchSequence:2,step:1,activeRow:null,itemSelection:new Set([3,4,5]),itemEdits:{},taxes:{},generationMode:'normal',renegDraft:null,generationRowIds:[],pendingTaxQueue:[],batchMode:false,genForm:{emitter:'LB SERVICOS DE MONTAGENS',date:today,ibscbs:'TESTE001 - Teste - Simulado',service:'140601 - Instalação e montagem de aparelhos, máquinas e equipamentos',iss:'01 - Tributável dentro do município',nbs:'101040000 - Serviços de montagem e de edificação de construções pré-fabricadas',extra:'(1) Esta NFS-e foi emitida com respaldo na Lei nº 14.097/2005; (2) Documento emitido por ME ou EPP optante pelo Simples Nacional;',fisco:'',env:true},search:'',searchType:'client',searchStart:'',searchEnd:'',searchField:'saleDate',filterItem:'3',filterStore:'',filterStatus:'Nao Gerada',filterFin:INITIAL_FIN,filterPerson:'',period:'3'};
 // Histórico ilustrativo: dados inventados exclusivamente para a demonstração, sem vínculo com prefeitura.
 state.generationLogs=[
   {id:'demo-log-1',lot:'DEMO-001',generatedAt:'16/11/2026 10:15',status:'Autorizada',recordId:rows[0].id,client:rows[0].client,contract:rows[0].contract,emitter:'LB SERVICOS DE MONTAGENS',items:['03','04','05','09'],returnMessage:'Autorizada (simulação) — NFS-e processada para demonstração.'},
@@ -99,24 +110,28 @@ function toast(message,type='success'){
   el.addEventListener('click',()=>el.remove());setTimeout(()=>el.remove(),4800);
 }
 function dateValue(dateBR){const p=String(dateBR||'').split('/');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:'';}
+function personType(row){const d=String(row.docId||'').replace(/\D/g,'');return d.length===11?'PF':d.length===14?'PJ':'';}
+function currentRowStatus(row){return row.itemStatus?.[Number(state.filterItem)]||row.status||'Nao Gerada';}
 function getFilteredRows(){
-  return rows.filter(r=>{
-    if(state.selectedOnly&&!state.selected.has(r.id))return false;
-    if(state.filterStore&&String(r.store)!==state.filterStore)return false;
-    if(state.filterStatus&&r.status!==state.filterStatus)return false;
-    if(state.filterFin==='Aberto - Todos'&&!r.finStage.startsWith('Aberto -'))return false;
-    if(state.filterFin&&state.filterFin!=='Aberto - Todos'&&r.finStage!==state.filterFin)return false;
-    const field=state.searchType==='contract'?r.contract:state.searchType==='code'?r.code:r.client;
-    if(state.search && !String(field).toLowerCase().includes(state.search.toLowerCase()))return false;
-    const chosenField=state.searchField==='dataMontagem'?'montage':state.searchField==='dataLiberacao'?'future':'saleDate';
-    const value=dateValue(r[chosenField]);
-    if(state.searchStart&&(!value||value<state.searchStart))return false;
-    if(state.searchEnd&&(!value||value>state.searchEnd))return false;
-    return true;
-  });
+ return rows.filter(r=>{
+  if(!r.fin&&!r.future)return false;
+  if(state.selectedOnly&&!state.selected.has(r.id))return false;
+  if(state.filterStore&&String(r.store)!==state.filterStore)return false;
+  if(state.filterStatus&&currentRowStatus(r)!==state.filterStatus)return false;
+  if(state.filterFin&&(r.fin?'Fechado':'Aberto')!==state.filterFin)return false;
+  if(state.filterPerson&&personType(r)!==state.filterPerson)return false;
+  const field=state.searchType==='contract'?r.contract:state.searchType==='code'?r.code:r.client;
+  if(state.search&&!String(field).toLowerCase().includes(state.search.toLowerCase()))return false;
+  const key=state.searchField==='dataMontagem'?'montage':state.searchField==='dataLiberacao'?'future':
+   state.searchField==='dataEmissao'?'issueDate':'saleDate';
+  const value=dateValue(r[key]);
+  if(state.searchStart&&(!value||value<state.searchStart))return false;
+  if(state.searchEnd&&(!value||value>state.searchEnd))return false;
+  return true;
+ });
 }
 function activeRow(){return rows.find(r=>r.id===state.activeRow) || rows.find(r=>r.code==='27447') || rows[0];}
-function isRowLocked(r){return state.filterItem==='7'&&!r.montage;}
+function isRowLocked(r){return state.filterItem==='7'&&!r.future;}
 // Valores monetários por item e por contrato; edições prevalecem sobre a amostra.
 function itemForContract(row,id){
   const item=itemCatalog.find(entry=>entry.id===Number(id));
@@ -136,7 +151,7 @@ function sumItemValues(contracts,filterItem=state.filterItem){
   return cents/100;
 }
 function footerTotals(filtered){
-  const defaultView = !state.selectedOnly&&!state.search&&!state.searchStart&&!state.searchEnd&&!state.filterStore&&state.filterStatus==='Nao Gerada'&&!state.filterFin;
+  const defaultView = false;
   const selectedVisible=filtered.filter(row=>state.selected.has(row.id));
   // Total Selecionado (Item): quantidade de registros/contratos marcados
   // que pertencem ao conjunto filtrado, independentemente da página atual.
@@ -144,9 +159,9 @@ function footerTotals(filtered){
   $('total-selected').textContent=String(selectedVisible.length);
   // Total a Emitir: valores de todos os contratos elegíveis da consulta,
   // independentemente da página atual; não se limita às linhas marcadas.
-  const eligible=filtered.filter(row=>row.status==='Nao Gerada'&&!isRowLocked(row));
+  const eligible=filtered.filter(row=>currentRowStatus(row)==='Nao Gerada'&&!isRowLocked(row));
   $('total-emit').textContent=money(sumItemValues(eligible));
-  $('total-found').textContent=defaultView?'416':filtered.length;
+  $('total-found').textContent=String(filtered.length);
   // Total de vendas em reais: soma dos contratos efetivamente retornados,
   // em centavos inteiros para evitar imprecisões acumuladas.
   const saleCents=filtered.reduce((sum,row)=>sum+Math.round((Number(row.value)||0)*100),0);
@@ -162,12 +177,12 @@ function renderTable(){
   const segment=filtered.slice((state.page-1)*state.pageSize,state.page*state.pageSize);
   $('records-body').innerHTML=segment.map(r=>{
     const locked=isRowLocked(r),sel=state.selected.has(r.id);
-    const tooltip=r.fin?`Data Fin: ${r.finDate}`:'Financeiro pendente de processamento';
+    const tooltip=r.fin?`Data FIN: ${r.finDate}`:'Financeiro pendente de processamento';
     const itemLabels=(r.sentItems||[]).map(describeSentItem);
     const itemLabelsHtml=itemLabels.map(value=>`<span class="sent-item-label">${escapeHtml(value)}</span>`).join('');
     return `<tr class="${sel?'is-selected ':''}${locked?'is-locked':''}" data-row-id="${r.id}">
-      <td><input type="checkbox" data-select-row="${r.id}" aria-label="Selecionar contrato ${escapeHtml(r.contract||r.code)}" ${sel?'checked':''} ${locked?'disabled title="Item 7: montagem não concluída"':''} /></td>
-      <td>${r.emp}</td><td>${r.store}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.client)}</td><td>${escapeHtml(r.saleType)}</td><td>${escapeHtml(r.contract)}</td><td>${r.status==='Nao Gerada'?'Não Gerada':escapeHtml(r.status)}</td><td>${r.saleDate}</td><td>${escapeHtml(r.orders)}</td><td class="money">${money(r.value)}</td><td class="sent-items-column" title="${escapeHtml(itemLabels.join(' | '))}">${itemLabelsHtml}</td><td>${r.montage||'—'}</td><td>${r.future||'—'}</td>
+      <td><input type="checkbox" data-select-row="${r.id}" aria-label="Selecionar contrato ${escapeHtml(r.contract||r.code)}" ${sel?'checked':''} ${locked?'disabled title="Item 07: liberação futura ausente (validação do financeiro pendente)"':''} /></td>
+      <td>${r.emp}</td><td>${r.store}</td><td>${escapeHtml(r.code)}</td><td title="${personType(r)==='PJ'?'CNPJ':'CPF'} fictício: ${escapeHtml(r.docId)}">${escapeHtml(r.client)}</td><td>${escapeHtml(r.saleType)}</td><td>${escapeHtml(r.contract)}</td><td>${currentRowStatus(r)==='Nao Gerada'?'Não Gerada':escapeHtml(currentRowStatus(r))}</td><td>${r.saleDate}</td><td>${escapeHtml(r.orders)}</td><td class="money">${money(r.value)}</td><td class="sent-items-column" title="${escapeHtml(itemLabels.join(' | '))}">${itemLabelsHtml}</td><td>${r.montage||'—'}</td><td>${r.future||'—'}</td>
       <td><button class="status-mark ${r.fin?'':'warning'}" type="button" aria-label="${escapeHtml(tooltip)}" title="${escapeHtml(tooltip)}" data-action="fin-info" data-record="${r.id}">${icon(r.fin?'check':'alert',20)}</button></td>
     </tr>`;
   }).join('');
@@ -179,11 +194,19 @@ function renderTable(){
   footerTotals(filtered);
   $('item7-note').hidden=state.filterItem!=='7';
   const btn=document.querySelector('[data-action="selected"]');btn.classList.toggle('tool-primary',state.selectedOnly);btn.setAttribute('aria-pressed',String(state.selectedOnly));
+  const batch=document.querySelector('[data-action="generate-batch"]');
+  if(batch){
+    const picked=rows.filter(row=>state.selected.has(row.id));
+    const hasCnpj=picked.some(row=>personType(row)==='PJ');
+    batch.disabled=!picked.length||hasCnpj;
+    batch.title=!picked.length?'Selecione contratos para o lote':hasCnpj?
+     'Gerar Lote indisponível: seleção contém CNPJ':'Gerar lote demonstrativo com os CPF selecionados';
+  }
 }
-function defaultResultCount(filtered){return !state.selectedOnly&&!state.search&&!state.searchStart&&!state.searchEnd&&!state.filterStore&&state.filterStatus==='Nao Gerada'&&!state.filterFin?416:filtered.length;}
+function defaultResultCount(filtered){return filtered.length;}
 function chooseRow(rid,checked){
   const r=rows.find(x=>x.id===rid);if(!r)return;
-  if(checked&&isRowLocked(r)){toast('Item 7: não é possível selecionar este contrato, pois a montagem ainda não foi concluída.','warning');return;}
+  if(checked&&isRowLocked(r)){toast('Item 07: liberação futura ausente (regra financeira provisória a validar).','warning');return;}
   if(checked){state.selected.add(rid);state.activeRow=rid;}else state.selected.delete(rid);
   renderTable();
 }
@@ -191,7 +214,7 @@ function resetSelectionOnItemChange(){
   if(state.filterItem==='7'){
     const locked=rows.filter(r=>isRowLocked(r)&&state.selected.has(r.id));
     locked.forEach(r=>state.selected.delete(r.id));
-    if(locked.length)toast(`${locked.length} contrato(s) desmarcado(s): montagem não concluída para o Item 7.`,'warning');
+    if(locked.length)toast(`${locked.length} contrato(s) desmarcado(s): liberação futura ausente no Item 07.`,'warning');
   }
 }
 function demoTarget(alsoSelect=false){
@@ -199,9 +222,9 @@ function demoTarget(alsoSelect=false){
   if(alsoSelect&&!state.selected.size){state.selected.add(target.id);renderTable();toast('Contrato Fernanda Martins Rocha selecionado como exemplo para a apresentação.','warning');}
   state.activeRow=target.id;return target;
 }
-function openModal(name, rowId=null){if(rowId)state.activeRow=rowId;state.taxReturn=null;state.modal=name;state.taxDraft=name==='tax'?(state.taxes[activeRow().id]?{...state.taxes[activeRow().id]}:{...taxDefaults}):null;renderModal();}
+function openModal(name, rowId=null){if(rowId)state.activeRow=rowId;if(name!=='tax'||state.taxReturn!=='transmission')state.taxReturn=null;state.modal=name;state.taxDraft=name==='tax'?(state.taxes[activeRow().id]?{...state.taxes[activeRow().id]}:{...taxDefaults}):null;renderModal();}
 function closeModal(){
-  state.modal=null;state.taxReturn=null;state.taxDraft=null;root.innerHTML='';document.body.style.overflow='';
+  state.modal=null;state.taxReturn=null;state.taxDraft=null;state.renegDraft=null;state.pendingTaxQueue=[];root.innerHTML='';document.body.style.overflow='';
 }
 function modalMarkup(title,body,footer='',cls='',tabs='',header=true){
   return `<div class="modal-backdrop" role="presentation"><div class="modal ${cls}" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}">
@@ -212,22 +235,43 @@ function modalMarkup(title,body,footer='',cls='',tabs='',header=true){
 function button(label,action,cls='',symbol=''){return `<button type="button" class="action-button ${cls}" data-modal-action="${action}">${symbol?icon(symbol):''}${escapeHtml(label)}</button>`;}
 function autoItem9(){return [3,4,5].every(id=>state.itemSelection.has(id));}
 function selectedItemIds(){const ids=new Set(state.itemSelection);if(autoItem9())ids.add(9);return ids;}
-function generationTabs(){return `<div class="modal-tabs"><button type="button" class="${state.step===1?'active':''}" data-modal-action="tab-items">Gerar NFS-e - Selecione os itens que serão enviados para NFS-e.</button><button type="button" class="${state.step===2?'active':''}" data-modal-action="tab-data">Gerar Nota Fiscal de Serviço</button></div>`;}
+function generationTabs(){if(state.generationMode==='renegotiate')return '<div class="modal-tabs"><button type="button" class="active">Renegociar valores de itens</button></div>';return `<div class="modal-tabs"><button type="button" class="${state.step===1?'active':''}" data-modal-action="tab-items">Gerar NFS-e - Selecione os itens que serão enviados para NFS-e.</button><button type="button" class="${state.step===2?'active':''}" data-modal-action="tab-data">Gerar Nota Fiscal de Serviço</button></div>`;}
+
+function generationTargets(){
+ const targets=rows.filter(row=>state.generationRowIds.includes(row.id));
+ return targets.length?targets:[activeRow()];
+}
+function itemValueTooltip(id){
+ const targets=generationTargets();
+ if(targets.length>1)return 'Total consolidado de '+targets.length+' contratos. Edicao bloqueada.';
+ const row=targets[0],origin=row.itemValues?.[id]??itemCatalog.find(i=>i.id===id)?.value??0;
+ const item=itemCatalog.find(i=>i.id===id);
+ const current=state.generationMode==='renegotiate'?getItemValue(item).value:itemForContract(row,id).value;
+ return 'Valor original: R$ '+money(origin)+(origin!==current?' | Valor alterado: R$ '+money(current):'');
+}
+
 function getItemValue(i){
-  return itemForContract(activeRow(),i.id);
+ const targets=generationTargets();
+ if(targets.length===1){
+   const original=itemForContract(targets[0],i.id);
+   return state.generationMode==='renegotiate'?{...original,...(state.renegDraft?.[i.id]||{})}:original;
+ }
+ const cents=targets.reduce((s,row)=>s+Math.round(itemForContract(row,i.id).value*100),0);
+ return {...i,pct:0,value:cents/100};
 }
 
 function recalcGenerationSummary(){
   const picked=selectedItemIds();
   const items=itemCatalog.map(getItemValue).filter(i=>picked.has(i.id));
-  const pct=items.reduce((sum,i)=>sum+i.pct,0);
+  const pct=generationTargets().length>1?null:items.reduce((sum,i)=>sum+i.pct,0);
   const amount=items.reduce((sum,i)=>sum+i.value,0);
   const p=document.querySelector('[data-summary-pct]'),v=document.querySelector('[data-summary-value]');
-  if(p)p.textContent=decimal(pct,6);
+  if(p)p.textContent=pct===null?'—':decimal(pct,6);
   if(v)v.textContent=money(amount);
 }
 
 function changeItemValue(id,key,raw,commit=false){
+ if(generationTargets().length>1){toast('Seleção múltipla: valores consolidados somente para leitura.','warning');renderModal();return;}
   const txt=String(raw??'').trim();
   const valid=/^\d+(?:[.,]\d+)?$|^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(txt);
   if(!valid){if(commit){toast('Informe um número válido e não negativo.','warning');renderModal();}return;}
@@ -236,32 +280,37 @@ function changeItemValue(id,key,raw,commit=false){
     if(commit){toast('O percentual deve estar entre 0 e 100 e o valor não pode ser negativo.','warning');renderModal();}
     return;
   }
-  const keyRow=activeRow().id;
-  if(!state.itemEdits[keyRow])state.itemEdits[keyRow]={};
-  state.itemEdits[keyRow][id]={...state.itemEdits[keyRow][id],[key]:numeric};
-  // Reflete valores ajustados também nos totalizadores do rodapé.
-  footerTotals(getFilteredRows());
+  if(state.generationMode==='renegotiate'){
+    if(!state.renegDraft)state.renegDraft={};
+    state.renegDraft[id]={...(state.renegDraft[id]||{}),[key]:numeric};
+  }else{
+    const keyRow=generationTargets()[0].id;
+    if(!state.itemEdits[keyRow])state.itemEdits[keyRow]={};
+    state.itemEdits[keyRow][id]={...state.itemEdits[keyRow][id],[key]:numeric};
+    footerTotals(getFilteredRows());
+  }
   if(commit)renderModal();else recalcGenerationSummary();
 }
 
 function generationBody(){
-  if(state.step===2)return generationForm();
+  if(state.step===2&&state.generationMode!=='renegotiate')return generationForm();
   const ids=selectedItemIds();
   const values=itemCatalog.map(getItemValue).filter(i=>ids.has(i.id));
-  const pct=values.reduce((s,i)=>s+i.pct,0),total=values.reduce((s,i)=>s+i.value,0);
+  const multi=generationTargets().length>1;
+  const pct=multi?null:values.reduce((s,i)=>s+i.pct,0),total=values.reduce((s,i)=>s+i.value,0);
   const tbody=itemCatalog.map(base=>{
     const i=getItemValue(base),isAuto=i.id===9&&autoItem9();
     return `<tr class="${ids.has(i.id)?'':'muted'}">
      <td><input type="checkbox" data-gen-item="${i.id}" aria-label="Selecionar item ${i.id}" ${ids.has(i.id)?'checked':''} ${isAuto?'title="Selecionado automaticamente pela combinação dos itens 3, 4 e 5"':''}></td>
      <td>${String(i.id).padStart(2,'0')} - ${escapeHtml(i.name)}</td>
      <td>${escapeHtml(i.provider)}</td>
-     <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="pct" aria-label="Percentual de venda do item ${i.id}" value="${decimal(i.pct,6)}"></td>
-     <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="value" aria-label="Valor do item ${i.id}" value="${money(i.value)}"></td>
+     <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="pct" aria-label="Percentual de venda do item ${i.id}" value="${multi?'—':decimal(i.pct,6)}" ${multi?'disabled':''} title="${escapeHtml(itemValueTooltip(i.id))}"></td>
+     <td><input class="gen-editable" type="text" inputmode="decimal" data-gen-item-value="${i.id}" data-gen-value-key="value" aria-label="Valor do item ${i.id}" value="${money(i.value)}" ${multi?'disabled':''} title="${escapeHtml(itemValueTooltip(i.id))}"></td>
     </tr>`;
   }).join('');
   return `<table class="generation-items-table" aria-label="Itens para NFS-e"><thead><tr><th><input type="checkbox" id="gen-select-all" aria-label="Selecionar todos" ${ids.size===9?'checked':''}></th><th>Itens</th><th>Fornecedor</th><th>% Venda</th><th>Valor</th></tr></thead><tbody>${tbody}</tbody></table>
-    <div class="generation-item-summary"><span>% Selecionado</span><output data-summary-pct>${decimal(pct,6)}</output><span>Total selec.</span><output data-summary-value>${money(total)}</output></div>
-    <div class="auto-note">Selecionar os itens 3, 4 e 5 inclui automaticamente o item 9. % Venda e Valor são editáveis independentemente neste protótipo.</div>`;
+    <div class="generation-item-summary"><span>% Selecionado</span><output data-summary-pct>${pct===null?'—':decimal(pct,6)}</output><span>Total selec.</span><output data-summary-value>${money(total)}</output></div>
+    <div class="auto-note">${multi?'Valores consolidados de '+generationTargets().length+' contratos; edição desabilitada.':state.generationMode==='renegotiate'?'Salve as alterações sem acessar a segunda aba ou emitir nota.':'Selecionar 3, 4 e 5 inclui o item 9. Itens não escolhidos permanecem Não Gerada.'} Passe o mouse no campo Valor para consultar alterações.</div>`;
 }
 const EMITTER_OPTIONS=["DB SERVICOS DE MONTAGENS","DA SERVICOS DE MONTAGENS","G5 SERVICOS DE MONTAGENS","G6 SERVICOS DE MONTAGENS","LA SERVICOS DE MONTAGENS","LB SERVICOS DE MONTAGENS","RA SERVICOS DE MONTAGENS","GABRIEL A - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","KASABELLA ASSESSORIA E SERVICOS LTDA","GABRIEL B - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","GABRIEL C - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","GD - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","D&D A - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","D&D B - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","IN - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","PLANEJA - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","BENTO - ASSESSORIA EM MOVEIS PLANEJADOS LTDA","SALVADOR APOIO ADMINISTRATIVO LTDA","SOUSA APOIO ADMINISTRATIVO LTDA","ED INSTALACAO DE MOVEIS LTDA - ME","PEDREIRA AMARAL INSTALACOES E SERVICOS LTDA","USMARI SERVICOS DE MONTAGEM LTDA","GA LOJA 353 LTDA - GA LOJA 353"];
 const FISCAL_OPTIONS={"ibscbs":["TESTE001 - Teste - Simulado"],"service":["140601 - Instalação e montagem de aparelhos, máquinas e equipamentos"],"iss":["01 - Tributável dentro do município"],"nbs":["101040000 - Serviços de montagem e de edificação de construções pré-fabricadas"]};
@@ -282,8 +331,8 @@ function generationForm(){
   </div>`;
 }
 function generationModal(){
-  const footer=state.step===1?`${button('Próximo','next')}${button('Fechar','close')}`:`${button('Ok','confirm-generation')}${button('Fechar','close')}`;
-  return modalMarkup('Gerar NFS-e',generationBody(),footer,'generation',generationTabs());
+  const footer=state.generationMode==='renegotiate'?`${button('Salvar','save-renegotiation')}${button('Fechar','close')}`:state.step===1?`${button('Próximo','next')}${button('Fechar','close')}`:`${button('Ok','confirm-generation')}${button('Fechar','close')}`;
+  return modalMarkup(state.generationMode==='renegotiate'?'Renegociar':'Gerar NFS-e',generationBody(),footer,'generation',generationTabs());
 }
 function taxForActive(){const row=activeRow();return state.taxDraft?{...state.taxDraft}:state.taxes[row.id]?{...state.taxes[row.id]}:{...taxDefaults};}
 function taxValue(base,rate){return money(base*rate/100);}
@@ -440,14 +489,16 @@ const HELP_GROUPS = [
       <h2>Botões da tela principal</h2><p>Os comandos abaixo aparecem na ordem prevista no mockup aprovado, mantendo o padrão de ícones, bordas e cores do eFinance.</p>
       <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Botão</th><th>Função proposta</th><th>No protótipo</th></tr></thead><tbody>
         <tr><td><b>Ver selecionados</b></td><td>Alternar entre todos os registros encontrados e apenas os contratos marcados.</td><td>Filtra localmente.</td></tr>
-        <tr><td><b>Gerar NFS-e</b></td><td>Iniciar a seleção de itens e a configuração dos dados de emissão da nota de serviço.</td><td>Abre duas etapas com dados de exemplo.</td></tr>
-        <tr><td><b>Transmitir</b></td><td>Em produção, enviar lotes à integração fiscal. O retorno deverá alimentar os logs.</td><td>Simula um lote dos contratos selecionados e atualiza o Log Geração Notas; não transmite externamente.</td></tr>
+        <tr><td><b>Gerar NFS-e</b></td><td>Preparar NFS-e dos contratos selecionados; com múltiplos clientes soma os valores dos itens, sem edição.</td><td>Controle por item, duas etapas e histórico local.</td></tr>
+<tr><td><b>Gerar Lote</b></td><td>Gerar lote de contratos Pessoa Física selecionados.</td><td>Desabilitado quando há CNPJ na seleção; agrega as preparações.</td></tr>
+<tr><td><b>Renegociar</b></td><td>Ajustar valores de itens de um único contrato.</td><td>Abre apenas a primeira etapa, permite salvar sem emissão.</td></tr>
+        <tr><td><b>Transmitir</b></td><td>Transmitir lotes e revisar tributos antes de transmitir o Item 07.</td><td>Para Item 07 preparado, abre Tributos Federais antes da transmissão simulada.</td></tr>
         <tr><td><b>DANFSe</b></td><td>Acessar o documento auxiliar da Nota Fiscal de Serviço.</td><td>Abre documento ilustrativo.</td></tr>
         <tr><td><b>Reenviar NFS-e e XML por e-mail</b></td><td>Reenviar os documentos fiscais ao destinatário.</td><td>Somente demonstração; não envia e-mail.</td></tr>
         <tr><td><b>Forçar Nova Consulta</b></td><td>Atualizar a situação dos documentos junto à integração fiscal.</td><td>Atualiza a visualização local.</td></tr>
         <tr><td><b>Cancelar NFS-e</b></td><td>Solicitar cancelamento conforme regras do município ou ambiente nacional aplicável.</td><td>Altera estado local após confirmação.</td></tr>
         <tr><td><b>Inutilizar Número</b></td><td>Comando mantido no desenho, sujeito à confirmação de aplicabilidade para NFS-e.</td><td>Exibe aviso informativo.</td></tr>
-        <tr><td><b>Excluir</b></td><td>Remover registros quando a situação e as permissões permitirem.</td><td>Remove apenas da sessão local.</td></tr>
+        <tr><td><b>Arquivar Nota</b></td><td>Arquivar as notas selecionadas.</td><td>Altera somente os status locais, mediante confirmação.</td></tr>
         <tr><td><b>Downloads</b></td><td>Disponibilizar arquivos dos documentos fiscais.</td><td>Exporta JSON demonstrativo, não XML fiscal.</td></tr>
         <tr><td><b>Redefinir Valor da NFS-e</b></td><td>Redefinir valor usado no fluxo, observando regras de negócio existentes.</td><td>Atualiza o valor em memória.</td></tr>
         <tr><td><b>Histórico</b></td><td>Consultar movimentações e eventos do registro.</td><td>Exibe histórico ilustrativo.</td></tr>
@@ -461,93 +512,23 @@ const HELP_GROUPS = [
     `
   },
   {
-    id:'filters', title:'Filtros e pesquisa', icon:'search', kicker:'03 · Consulta',
-    subtitle:'Combos, pesquisa textual, datas e paginação.',
-    html:`
-      <h2>Filtros e pesquisa</h2><p>A tela disponibiliza filtros necessários à identificação dos contratos e itens candidatos à emissão.</p>
-      <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Controle</th><th>Funcionamento</th></tr></thead><tbody>
-        <tr><td><b>Loja</b></td><td>Restringe os registros à loja selecionada.</td></tr>
-        <tr><td><b>Status</b></td><td>Filtra pela situação do documento fiscal. Use <b>--Todos--</b> para consultar todas as situações. O protótipo apresenta dados fictícios inicialmente em <b>Não Geradas</b>.</td></tr>
-        <tr><td><b>Itens</b></td><td>Seleciona um item específico (01 a 09) ou <b>--Todos--</b>. Define o item utilizado no somatório monetário <b>Total a Emitir</b>; <b>Total Selecionado</b> continua contando os contratos marcados, sem somar valores. Ao escolher o <b>Item 7</b>, ativa a trava especial de montagem.</td></tr>
-        <tr><td><b>FIN</b></td><td>--Todos--; Aberto - Todos; Aberto - Não enviado; Aberto - Enviado sem fin; Fechado - Enviado com fin; Em substituição. No protótipo, são situações fictícias para filtro, independentes do indicador Fin Processado.</td></tr>
-        <tr><td><b>Buscar por</b></td><td>Permite localizar pelo cliente; no protótipo, também por contrato ou código do cliente.</td></tr>
-        <tr><td><b>Período</b></td><td>Define a abrangência temporal da pesquisa.</td></tr>
-        <tr><td><b>Filtrar Por</b></td><td>Indica a data usada como referência da consulta; o protótipo oferece Data Venda, Data Término de Montagem e Data Término Liberação Futura.</td></tr>
-        <tr><td><b>de / até</b></td><td>Delimitam a data inicial e final.</td></tr>
-        <tr><td><b>Aplicar Filtro</b></td><td>Executa a consulta conforme os critérios informados.</td></tr>
-        <tr><td><b>Paginação</b></td><td>Navega pelas páginas; seleção e totalizadores devem considerar o conjunto filtrado e não somente o que está visível na página.</td></tr>
-      </tbody></table></div>
-      <h3>Opções do combo Status</h3><p>A tela apresenta as opções abaixo, na mesma ordem definida no eFinance. <b>--Todos--</b> remove o filtro de status.</p><ul class="help-status-list"><li>Não Geradas</li><li>Geradas Parcialmente</li><li>Pendente de Transmissão</li><li>Transmitindo</li><li>Aguardando Resposta</li><li>Autorizada</li><li>Inutilizada</li><li>Denegada</li><li>Cancelada</li><li>Nota de Entrada</li><li>Arquivada</li></ul><p><b>Nota:</b> as opções representam o filtro da interface; o protótipo não executa transições fiscais reais.</p>
-      <h3>Tipos de venda não disponíveis</h3><p><b>AT Com Custo</b> e <b>AT Sem Custo</b> devem sair das opções de pesquisa destinadas à NFS-e. Os demais tipos seguem as regras existentes.</p>
-      <div class="help-notice help-neutral"><b>Importante:</b> a exclusão desses tipos das opções de pesquisa não confirma, por si só, a remoção de registros históricos. Esse ponto permanece sujeito à validação técnica.</div>
-    `
+    id:"filters", title:"Filtros e pesquisa", icon:"search", kicker:"03 · Consulta",
+    subtitle:"FIN, status, item, CPF/CNPJ e datas.",
+    html:"\n<h2>Filtros da consulta NFS-e</h2>\n<p><b>Regra da consulta:</b> excluir contratos que estejam simultaneamente <b>sem FIN processado</b> e <b>sem Data Término Liberação Futura</b>. Um contrato que tenha ao menos uma dessas informações pode ser consultado, sujeito aos filtros aplicados.</p>\n<div class=\"help-table-wrap\"><table class=\"help-table\"><thead><tr><th>Filtro</th><th>Regra</th></tr></thead><tbody>\n<tr><td><b>FIN</b></td><td>Combos exclusivos <b>Aberto</b> e <b>Fechado</b>. No perfil <b>Carla/Kasabella</b> a tela inicia em <b>Fechado</b>, exibindo contratos finalizados. Para outras empresas o default é configurável por perfil; a demonstração assume Aberto, sujeito a validação.</td></tr>\n<tr><td><b>Status</b></td><td>Somente <b>Gerada</b>, <b>Não Gerada</b>, <b>Pendente de Transmissão</b>, <b>Cancelada</b> e <b>Arquivada</b>. Gerada substitui o nome anterior Autorizada na listagem; a situação é controlada por item.</td></tr>\n<tr><td><b>Itens</b></td><td>Somente itens <b>01 a 09</b>, sem opção Todos. O protótipo começa no Item 03. O item escolhido define a situação mostrada para o contrato e o somatório Total a Emitir.</td></tr>\n<tr><td><b>Pessoa</b></td><td><b>--Todas-- / Pessoa Física / Pessoa Jurídica</b>. Usa o campo CPF (11 dígitos) ou CNPJ (14 dígitos) vinculado ao cliente. Os identificadores da demonstração são fictícios.</td></tr>\n<tr><td><b>Loja</b></td><td>Restringe ao estabelecimento selecionado.</td></tr>\n<tr><td><b>Buscar por</b></td><td>Consulta por nome do cliente, contrato ou código do cliente.</td></tr>\n<tr><td><b>Período / Filtrar Por</b></td><td>Data de Emissão, Data de Venda, Data Término de Montagem ou Data Término Liberação Futura. Emissão só tem data quando a NFS-e foi preparada; as datas precisam vir das origens funcionais indicadas.</td></tr>\n<tr><td><b>de / até</b></td><td>Aplica intervalo sobre o campo de data escolhido, sem confundir data de venda e de emissão.</td></tr>\n</tbody></table></div>\n<div class=\"help-notice help-warning\"><b>Item 07:</b> bloqueio provisório quando Data Término Liberação Futura estiver vazia. O gatilho final do Financeiro precisa ser validado antes da implementação real.</div>\n"
   },
   {
-    id:'columns', title:'Colunas e origem dos dados', icon:'file', kicker:'04 · Listagem',
-    subtitle:'Significado das colunas e localização das informações.',
-    html:`
-      <h2>Colunas da listagem</h2><p>As três colunas novas têm origens funcionais definidas. Para as colunas herdadas, o mapeamento aponta o dado apresentado; a tabela e o campo SQL exatos ainda dependem de confirmação técnica.</p>
-      <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Coluna</th><th>O que apresenta</th><th>Origem funcional</th></tr></thead><tbody>
-        <tr><td><b>Emp</b></td><td>Código da empresa.</td><td>Cadastro empresarial existente (mapeamento técnico a confirmar).</td></tr>
-        <tr><td><b>Loja</b></td><td>Código do estabelecimento.</td><td>Cadastro da loja (mapeamento técnico a confirmar).</td></tr>
-        <tr><td><b>Cód.</b></td><td>Código do cliente.</td><td>Cadastro do cliente já utilizado pelo eFinance.</td></tr>
-        <tr><td><b>Cliente</b></td><td>Nome do cliente associado.</td><td>Cadastro do cliente já utilizado pelo eFinance.</td></tr>
-        <tr><td><b>Tipo Venda</b></td><td>Modalidade da venda.</td><td>Dados comerciais já utilizados na listagem.</td></tr>
-        <tr><td><b>Contrato</b></td><td>Identificação do contrato.</td><td>Registro de contrato existente.</td></tr>
-        <tr><td><b>Status</b></td><td>Situação da emissão da NFS-e.</td><td>Controle fiscal / retorno da integração de emissão (detalhamento a confirmar).</td></tr>
-        <tr><td><b>Data Venda</b></td><td>Data de realização da venda.</td><td>Registro de venda existente.</td></tr>
-        <tr><td><b>Pedidos</b></td><td>Pedidos associados à venda/contrato.</td><td>Vínculo com pedidos existentes.</td></tr>
-        <tr><td><b>Valor Venda</b></td><td>Valor financeiro da venda.</td><td>Registro comercial da venda.</td></tr>
-        <tr><td><b>Itens Enviados p/ NFS-e</b></td><td>Exibe <b>código e descrição completa</b> de cada item encaminhado, por exemplo <b>03 - Coordenação</b>, <b>04 - Supervisão de Montagem</b>, <b>05 - Instalação/Assistência</b> e <b>09 - Reserva</b>. Os itens são apresentados em linhas dentro da célula, com texto completo no tooltip.</td><td>Códigos dos itens preparados para a NFS-e associados ao contrato; as descrições vêm do mesmo catálogo de itens da etapa <b>Gerar NFS-e</b>. O vínculo técnico em produção deve ser confirmado.</td></tr>
-                <tr class="help-accent-row"><td><b>Data Término de Montagem</b> <span class="help-label-new">Nova</span></td><td>Data efetiva de conclusão da montagem, no formato <b>DD/MM/AAAA</b>, sem horário.</td><td><b>Pós-Venda</b> — conclusão da montagem vinculada ao contrato.</td></tr>
-        <tr class="help-accent-row"><td><b>Data Término Liberação Futura</b> <span class="help-label-new">Nova</span></td><td>Data de término da liberação futura, no formato <b>DD/MM/AAAA</b>, sem horário.</td><td><b>Gerenciamento de Contratos Futuros</b> — campo <b>Término Lib.</b> do contrato.</td></tr>
-        <tr class="help-accent-row"><td><b>Fin Processado</b> <span class="help-label-new">Nova</span></td><td>Check azul quando processado e triângulo de alerta quando pendente. Na finalização, o tooltip mostra data e hora.</td><td><b>Comercial &gt; Contratos Realizados</b> — situação do processamento financeiro.</td></tr>
-      </tbody></table></div>
-      <h3>Regras de apresentação das novas colunas</h3><ul class="help-bullets"><li>Montagem não concluída ou sem data: apresentar <b>célula vazia</b> (no protótipo, traço indicativo).</li><li>Liberação futura sem data: apresentar <b>célula vazia</b>.</li><li><b>Fin Processado:</b> ao passar o mouse ou focalizar o indicador finalizado, exibir <b>Data Fin: 11/11/2026 23:41:08</b> como exemplo de data/hora.</li><li>Essas colunas apenas consultam dados de origem; <b>não alteram</b> os processos de Pós-Venda, Contratos Futuros e Comercial.</li></ul>
-    `
+    id:'columns', title:'Colunas e origem dos dados', icon:'file', kicker:'04 · Listagem', subtitle:'Nomenclatura e origem funcional.',
+    html:"<h2>Colunas da listagem de NFS-e</h2><p>Os cabeçalhos foram normalizados para nomenclaturas funcionais explícitas. Os campos SQL concretos ainda dependem de identificação pelo desenvolvimento.</p>\n<div class=\"help-table-wrap\"><table class=\"help-table\"><thead><tr><th>Coluna</th><th>Informação e origem funcional</th></tr></thead><tbody>\n<tr><td>Empresa / Loja</td><td>Empresa e estabelecimento provenientes do cadastro empresarial.</td></tr>\n<tr><td>Cód. Cliente / Cliente-Tomador</td><td>Código e nome do cliente. Seu CPF ou CNPJ, fictício no protótipo, pode ser visto ao passar o mouse e alimenta o filtro Pessoa.</td></tr>\n<tr><td>Tipo de Venda / Contrato</td><td>Modalidade comercial e número do contrato.</td></tr>\n<tr><td>Status NFS-e</td><td>Gerada, Não Gerada, Pendente de Transmissão, Cancelada ou Arquivada, conforme o item selecionado; não há Gerada Parcialmente.</td></tr>\n<tr><td>Data da Venda</td><td>Data registrada na venda; diferente da data de emissão da NFS-e.</td></tr>\n<tr><td>Pedidos / Valor da Venda</td><td>Pedidos vinculados e valor comercial da venda.</td></tr>\n<tr><td>Itens da NFS-e</td><td>Código e descrição dos itens preparados, enviados ou gerados para cada contrato.</td></tr>\n<tr><td>Data Término de Montagem</td><td>Data de conclusão da montagem no Pós-Venda, sem horário.</td></tr>\n<tr><td>Data Término Liberação Futura</td><td>Campo Término Lib. do Gerenciamento de Contratos Futuros, sem horário; hipótese de condição do Item 07.</td></tr>\n<tr><td>FIN Processado</td><td>Estado e data/hora do FIN de Comercial &gt; Contratos Realizados; check ou alerta com tooltip.</td></tr>\n</tbody></table></div><div class=\"help-notice help-warning\">CPF/CNPJ e demais registros exibidos são fictícios. Confirme tabelas, joins e a regra financeira do Item 07 antes de produção.</div>"
   },
   {
-    id:'selection', title:'Regras de seleção', icon:'check', kicker:'05 · Regras de negócio',
-    subtitle:'Independência, Item 7 e composição 3 + 4 + 5 + 9.',
-    html:`
-      <h2>Regras de seleção dos itens</h2><div class="help-rule-block"><span class="help-rule-num">R1</span><div><h3>Remover a trava do registro pai</h3><p>Cada item poderá ser selecionado individualmente, inclusive em momentos distintos para o mesmo contrato. A seleção de um item não obriga selecionar os demais e não deve bloquear seleções posteriores.</p><p><b>Resultado:</b> flexibilidade para emitir itens de um contrato em momentos diferentes, preservando as validações fiscais necessárias.</p></div></div>
-      <div class="help-rule-block"><span class="help-rule-num">R2</span><div><h3>Exceção exclusiva do combo Itens = 7</h3><p><b>Somente quando o combo Itens estiver com o Item 7 selecionado</b>, o sistema deverá consultar a coluna <b>Data Término de Montagem</b>, que recebe a conclusão da montagem do Pós-Venda.</p>
-      <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Seleção no combo</th><th>Data Término de Montagem</th><th>Seleção do contrato</th></tr></thead><tbody>
-        <tr><td><b>Item 7</b></td><td>Vazia</td><td><span class="help-status-no">Bloqueada</span></td></tr>
-        <tr><td><b>Item 7</b></td><td>Preenchida</td><td><span class="help-status-yes">Permitida</span></td></tr>
-        <tr><td><b>Qualquer outro item</b></td><td>Vazia ou preenchida</td><td>Esta trava específica <b>não se aplica</b>.</td></tr>
-      </tbody></table></div>
-      <div class="help-notice help-warning"><b>Mensagem de bloqueio:</b> “Não é possível selecionar este contrato para o Item 7, pois a montagem ainda não foi concluída.”</div>
-      </div></div>
-      <div class="help-rule-block"><span class="help-rule-num">R3</span><div><h3>Inclusão automática do Item 9</h3><p>Quando os <b>itens 3, 4 e 5</b> forem selecionados conjuntamente, a tela de Itens Selecionados deve apresentar também o <b>item 9 — Reserva</b>, sem duplicações.</p>
-      <div class="help-selection-demo"><div><span>Selecionados</span><strong>03 · 04 · 05</strong></div><span class="help-selection-arrow">→</span><div><span>Resultado esperado</span><strong>03 · 04 · 05 · 09</strong></div></div>
-      <p>O item <b>09 - Reserva</b> aparece <b>marcado em azul como os demais</b>, sem o sufixo “(Auto)”. Enquanto a combinação 3 + 4 + 5 estiver selecionada, a tentativa de desmarcar o 9 será revertida para preservar a inclusão automática. Após a preparação, a listagem apresenta código e descrição dos itens enviados.</p><p class="help-small">Comportamento em seleção parcial ou ao desmarcar itens: <b>precisa ser validado</b>. Neste protótipo, ao deixar de selecionar 3, 4 ou 5, a inclusão automática do item 9 deixa de ser aplicada.</p>
-      </div></div>
-      <div class="help-rule-block"><span class="help-rule-num">R4</span><div><h3>Seleção independente da emissão</h3><p>Remover travas da seleção <b>não</b> significa dispensar validações fiscais, permissões, situação do documento ou controle contra emissão duplicada.</p></div></div>
-    `
+    id:"selection", title:"Regras de seleção", icon:"check", kicker:"05 · Regras de negócio",
+    subtitle:"Contratos independentes, FIN e Item 07.",
+    html:"\n<h2>Seleção e status por item</h2>\n<div class=\"help-rule-block\"><span class=\"help-rule-num\">R1</span><div><h3>Sem dependência do contrato pai</h3><p>É permitido emitir itens de um mesmo contrato em momentos distintos. A seleção de um item não exige a seleção de todos.</p></div></div>\n<div class=\"help-rule-block\"><span class=\"help-rule-num\">R2</span><div><h3>Item 07 — bloqueio financeiro provisório</h3><p>A trava especial é ativada apenas quando o combo Itens estiver em <b>07 - Contratado - Franquia</b>. Na demonstração, contratos sem <b>Data Término Liberação Futura</b> não podem ser selecionados nesse filtro. A regra efetiva do FIN deve ser confirmada com o Financeiro, pois a liberação futura foi apresentada como hipótese.</p></div></div>\n<div class=\"help-rule-block\"><span class=\"help-rule-num\">R3</span><div><h3>Combinação 03 + 04 + 05 → 09</h3><p>Selecionar os itens 3, 4 e 5 inclui automaticamente o <b>09 - Reserva</b>, marcado em azul sem sufixo (Auto). Enquanto a combinação estiver marcada, a Reserva não pode ser desmarcada isoladamente.</p></div></div>\n<div class=\"help-rule-block\"><span class=\"help-rule-num\">R4</span><div><h3>Não Gerada por item, não por contrato parcialmente processado</h3><p>Somente os itens preparados mudam para <b>Pendente de Transmissão</b>. Quando autorizados passam para <b>Gerada</b>; itens não selecionados continuam <b>Não Gerada</b>, sem atribuir automaticamente <b>Gerada Parcialmente</b> à segunda emissão. Os status exibidos dependem do item escolhido no filtro.</p></div></div>\n<div class=\"help-notice\"><b>Regra geral da busca:</b> registros sem FIN e também sem liberação futura devem ser excluídos. O FIN inicia Fechado no perfil Carla.</div>\n"
   },
   {
-    id:'generation', title:'Gerar NFS-e', icon:'send', kicker:'06 · Fluxo de emissão',
-    subtitle:'As duas etapas de Gerar Nota Serviço.',
-    html:`
-      <h2>Fluxo do botão Gerar NFS-e</h2><p>O botão <b>Gerar NFS-e</b> fica imediatamente após <b>Ver selecionados</b>. A janela segue as duas telas da funcionalidade Gerar Nota Serviço já utilizadas no sistema.</p>
-      <div class="help-step"><b>Etapa 1</b><div><h3>Selecionar itens</h3><p>Apresenta a relação de itens do contrato com colunas <b>Itens</b>, <b>Fornecedor</b>, <b>% Venda</b> e <b>Valor</b>. O item 09 aparece marcado na mesma cor dos demais, sem texto “(Auto)”, quando incluído pela combinação 3 + 4 + 5. Permite selecionar ou desmarcar itens, editar <b>% Venda</b> e <b>Valor</b> individualmente e aplicar a inclusão automática do item 9. Os dois valores são independentes (a alteração de um não recalcula o outro sem regra de negócio aprovada).</p><p><b>Rodapé da etapa:</b> <b>% Selecionado</b> e <b>Total selec.</b> calculados com base nos itens marcados. <b>Próximo</b> avança para os dados de emissão; <b>Fechar</b> encerra a janela.</p></div></div>
-      <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Item</th><th>Descrição</th></tr></thead><tbody>
-        <tr><td>01</td><td>Produto</td></tr><tr><td>02</td><td>Transporte/Armazenamento</td></tr><tr><td>03</td><td>Coordenação</td></tr><tr><td>04</td><td>Supervisão de Montagem</td></tr><tr><td>05</td><td>Instalação/Assistência</td></tr><tr><td>06</td><td>Layout/Medição/Conferência</td></tr><tr><td>07</td><td>Contratado - Franquia</td></tr><tr><td>08</td><td>Financeira</td></tr><tr><td>09</td><td>Reserva</td></tr>
-      </tbody></table></div>
-      <div class="help-step"><b>Etapa 2</b><div><h3>Gerar Nota Fiscal de Serviço</h3><p>Após <b>Próximo</b>, exibir os dados necessários à preparação da nota, conforme o mockup de referência.</p>
-      <div class="help-table-wrap"><table class="help-table"><thead><tr><th>Campo</th><th>Finalidade</th></tr></thead><tbody>
-        <tr><td>Emitente</td><td>Selecionar entre os emitentes do print de referência (exemplo: LB SERVICOS DE MONTAGENS).</td></tr>
-        <tr><td>Dt. Emissão</td><td>Informar data da emissão.</td></tr>
-        <tr><td>IBS/CBS</td><td>Exemplo parametrizado: TESTE001 - Teste - Simulado; código demonstrativo, sujeito à integração.</td></tr>
-        <tr><td>Cód. Serviço NFS-e</td><td>140601 - Instalação e montagem de aparelhos, máquinas e equipamentos.</td></tr>
-        <tr><td>Tipo Trib. ISS</td><td>01 - Tributável dentro do município.</td></tr>
-        <tr><td>Item NBS</td><td>101040000 - Serviços de montagem e de edificação de construções pré-fabricadas.</td></tr>
-        <tr><td>Informação Adicional</td><td>Texto adicional apresentado no documento, quando aplicável.</td></tr>
-        <tr><td>Informação p/ o fisco</td><td>Observações destinadas ao fisco, quando aplicável.</td></tr>
-      </tbody></table></div><p><b>Botões:</b> <b>Ok</b> confirma a preparação simulada; <b>Fechar</b> encerra. O botão Tributos Federais fica somente na barra principal. A segunda etapa não contém a grade de ambientes nem combo adicional de itens.</p></div></div>
-      <div class="help-notice"><b>No protótipo:</b> Emitente, IBS/CBS, código de serviço, tipo ISS, NBS e data são validados antes da confirmação. <b>Ok não transmite</b> documentos; o botão Transmitir da tela principal representa a etapa própria de transmissão.</div>
-    `
+    id:"generation", title:"Gerar NFS-e", icon:"send", kicker:"06 · Emissão e renegociação",
+    subtitle:"Emissão individual, lote e renegociação.",
+    html:"\n<h2>Fluxos de geração da NFS-e</h2>\n<div class=\"help-step\"><b>1</b><div><h3>Gerar NFS-e</h3><p>Abre a etapa de seleção dos itens 01 a 09, com fornecedor, percentual e valor. Para um contrato, o valor pode ser alterado e um tooltip apresenta o valor original e o ajustado. Em seguida, a segunda aba coleta Emitente, IBS/CBS, código de serviço, Tipo Trib. ISS, Item NBS e data de emissão.</p></div></div>\n<div class=\"help-step\"><b>2</b><div><h3>Vários contratos selecionados</h3><p>Na primeira etapa, o campo Valor é a <b>soma dos valores daquele item em todos os contratos selecionados</b>; edição de porcentagem ou valor fica bloqueada para evitar modificar vários contratos de forma ambígua. O total dos itens selecionados é a soma consolidada. Percentuais não são somados, pois não representam um percentual único de lote.</p></div></div>\n<div class=\"help-step\"><b>3</b><div><h3>Gerar Lote — somente CPF</h3><p>O botão é habilitado quando há contratos selecionados e <b>nenhum deles possui CNPJ</b>. Se existir Pessoa Jurídica na seleção, o botão permanece desabilitado. A preparação associa os documentos ao lote demonstrativo e registra os itens por cliente.</p></div></div>\n<div class=\"help-step\"><b>4</b><div><h3>Renegociar</h3><p>Exige exatamente <b>um contrato selecionado</b>, abre apenas a aba de itens, permite editar valores e salvar os ajustes, <b>sem abrir a segunda aba</b>, preparar nota ou transmitir documento.</p></div></div>\n<div class=\"help-step\"><b>5</b><div><h3>Controle das próximas emissões</h3><p>A emissão de alguns itens não marca automaticamente os demais como parcialmente gerados. Cada item permanece em <b>Não Gerada</b> até ser preparado ou autorizado, conforme seu próprio histórico.</p></div></div>\n<div class=\"help-notice help-warning\"><b>Transmitir com Item 07:</b> antes da transmissão demonstrativa, abrir Tributos Federais para os contratos que tiverem o item 07 preparado. Somente ao salvar e revisar os tributos o lote prossegue. Fechar a revisão interrompe a transmissão. Sem Item 07, o fluxo não exige essa janela.</div>\n"
   },
   {
     id:'taxes', title:'Tributos Federais', icon:'layers', kicker:'07 · Configuração tributária',
@@ -611,13 +592,13 @@ const HELP_GROUPS = [
       <h2>Totalizadores no rodapé</h2><p>O rodapé apresenta <b>cinco indicadores</b>: quantidade de contratos marcados, valor monetário dos itens a emitir, quantidade na busca, total da coluna Valor Venda e total da coluna Valor Venda apenas dos contratos marcados.</p>
       <div class="help-card-grid help-total-grid">
         <div class="help-info-card"><h4>Total Selecionado (Item)</h4><p><b>Quantidade de contratos/registros marcados</b> nos checkboxes da listagem que correspondem à consulta atual, incluindo seleções em outras páginas. Não soma valores em reais nem conta os subitens de cada contrato. Exemplo: com o combo <b>03 - Coordenação</b> e quatro contratos marcados, apresenta <b>4</b>. Sem marcações, apresenta <b>0</b>.</p></div>
-        <div class="help-info-card"><h4>Total a Emitir (Item)</h4><p><b>Soma em reais</b> dos itens nos <b>contratos elegíveis para emissão</b> (status Não Gerada) retornados pelos filtros, estejam marcados ou não. Com Item 03 e os 16 contratos demonstrativos: <b>R$ 121,68</b>. Com <b>--Todos--</b>, soma os valores de todos os itens desses contratos.</p></div>
+        <div class="help-info-card"><h4>Total a Emitir (Item)</h4><p><b>Soma em reais</b> do item escolhido nos contratos elegíveis, estejam marcados ou não. A opção Todos foi removida. FIN inicia Fechado no perfil Carla, por isso a soma reflete apenas os contratos realmente filtrados.</p></div>
         <div class="help-info-card"><h4>Total da Busca (Item)</h4><p>Quantidade de itens retornados pelos filtros da pesquisa, considerando o conjunto completo, não só a página visível.</p></div>
         <div class="help-info-card"><h4>Total (Valor Venda)</h4><p><b>Soma real da coluna Valor Venda</b> de todos os contratos retornados pela consulta (não apenas a página atual). Recalcula quando os filtros ou valores de venda mudam. Os 16 contratos demonstrativos somam <b>R$ 3.262.669,79</b>.</p></div>
         <div class="help-info-card"><h4>Total (Valor Venda Selecionado)</h4><p><b>Soma real da coluna Valor Venda dos contratos marcados</b> que correspondem à consulta atual, em todas as páginas. Exemplo: marcando apenas o contrato de Daniel Ferreira Mendes, o resultado é <b>R$ 60.400,00</b>. Sem contratos marcados, exibe <b>R$ 0,00</b>. O combo <b>Itens</b> não rateia o Valor Venda do contrato: ele define o item considerado no <b>Total a Emitir</b>, enquanto <b>Total Selecionado</b> conta os contratos marcados.</p></div>
       </div>
-      <h3>Regras de consistência</h3><ul class="help-bullets"><li><b>Total Selecionado (Item)</b> conta os registros marcados (inteiro, sem símbolo monetário). <b>Total a Emitir (Item)</b> continua sendo somatório monetário dos itens elegíveis.</li><li>Combo <b>Itens = 01 a 09</b>: em Total a Emitir, somar somente o item escolhido; com <b>--Todos--</b>, somar todos os itens sem duplicidade. Em Total Selecionado, o combo define o contexto da seleção, mas o resultado é a <b>quantidade de contratos marcados</b>.</li><li>Recalcular o contador ao filtrar ou marcar/desmarcar contratos; alterações monetárias não mudam a quantidade. Recalcular os somatórios monetários ao trocar de item ou alterar valores.</li><li>O <b>Total (Valor Venda Selecionado)</b> acompanha os checkboxes dos contratos e os filtros, sem depender da página atual e sem multiplicar o Valor Venda pela quantidade de itens do contrato.</li><li>Os totais devem contemplar todos os contratos filtrados, não somente a página atual.</li><li><b>Total Selecionado</b> conta os contratos marcados de todo o conjunto filtrado, não somente da página atual. <b>Total a Emitir</b> considera todos os contratos Não Gerada que atendam aos filtros, independentemente de estarem marcados; na escolha do <b>Item 07</b>, exclui contratos sem Data Término de Montagem, respeitando a trava de emissão existente.</li><li>Somar em centavos inteiros para evitar divergências de arredondamento.</li></ul>
-      <div class="help-notice help-neutral"><b>Dados demonstrativos:</b> os 16 contratos carregados têm valores individuais para o Item 03, totalizando <b>R$ 121,68</b>; um contrato de exemplo mantém <b>R$ 9,36</b>. O valor 416 em Total da Busca continua sendo um indicador ilustrativo. Já <b>Total (Valor Venda)</b> soma os contratos efetivamente carregados: <b>R$ 3.262.669,79</b> no cenário inicial. O contador de selecionados e o valor a emitir utilizam somente os contratos efetivamente carregados no protótipo, sem simular registros inexistentes. O backend real deve fornecer os valores por item/contrato e o conjunto completo paginado.</div>
+      <h3>Regras de consistência</h3><ul class="help-bullets"><li><b>Total Selecionado (Item)</b> conta os registros marcados (inteiro, sem símbolo monetário). <b>Total a Emitir (Item)</b> continua sendo somatório monetário dos itens elegíveis.</li><li>Combo <b>Itens = 01 a 09</b>: Total a Emitir soma apenas o item escolhido. Não existe Todos. Total Selecionado permanece como <b>quantidade de contratos marcados</b>.</li><li>Recalcular o contador ao filtrar ou marcar/desmarcar contratos; alterações monetárias não mudam a quantidade. Recalcular os somatórios monetários ao trocar de item ou alterar valores.</li><li>O <b>Total (Valor Venda Selecionado)</b> acompanha os checkboxes dos contratos e os filtros, sem depender da página atual e sem multiplicar o Valor Venda pela quantidade de itens do contrato.</li><li>Os totais devem contemplar todos os contratos filtrados, não somente a página atual.</li><li><b>Total Selecionado</b> conta os contratos marcados de todo o conjunto filtrado, não somente da página atual. <b>Total a Emitir</b> considera todos os contratos Não Gerada que atendam aos filtros, independentemente de estarem marcados; na escolha do <b>Item 07</b>, exclui contratos sem Data Término Liberação Futura, conforme hipótese provisória do Financeiro.</li><li>Somar em centavos inteiros para evitar divergências de arredondamento.</li></ul>
+      <div class="help-notice help-neutral"><b>Dados demonstrativos:</b> na amostra original, os 16 contratos totalizavam R$ 121,68 no Item 03 antes dos novos filtros. Com FIN Fechado por padrão, as somas são calculadas apenas sobre os registros filtrados; Total da Busca usa a quantidade efetiva. Já <b>Total (Valor Venda)</b> soma os contratos efetivamente carregados: <b>R$ 3.262.669,79</b> no cenário inicial. O contador de selecionados e o valor a emitir utilizam somente os contratos efetivamente carregados no protótipo, sem simular registros inexistentes. O backend real deve fornecer os valores por item/contrato e o conjunto completo paginado.</div>
     `
   },
   {
@@ -625,7 +606,7 @@ const HELP_GROUPS = [
     subtitle:'Botões, combos e tipos de venda excluídos.',
     html:`
       <h2>Elementos retirados da tela NFS-e</h2><p>A interface deve ficar exclusiva para Nota Fiscal de Serviço, sem misturar ações pertinentes apenas à NF-e.</p>
-      <h3>Botões removidos</h3><div class="help-chip-list"><span>Gerar Nota</span><span>Dados NF-e</span><span>Volumes</span><span>Mensagens</span><span>Gerar Devolução</span><span>Gerar Nota Avulsa</span><span>Logs Rece. Federal</span><span>CC-e</span><span>Aplicar Desconto</span><span>Alt. Cliente</span><span>Pré-visualizar DANFSe</span><span>Coluna E./S.</span></div>
+      <h3>Botões removidos</h3><div class="help-chip-list"><span>Gerar Nota</span><span>Dados NF-e</span><span>Volumes</span><span>Mensagens</span><span>Gerar Devolução</span><span>Gerar Nota Avulsa</span><span>Logs Rece. Federal</span><span>CC-e</span><span>Aplicar Desconto</span><span>Alt. Cliente</span><span>Pré-visualizar DANFSe</span><span>Excluir</span><span>Coluna E./S.</span></div>
       <p><b>Observação:</b> o comando antigo <b>Gerar Nota</b> foi substituído no novo fluxo pelo botão específico <b>Gerar NFS-e</b>.</p>
       <h3>Combos removidos</h3><div class="help-chip-list"><span>Natureza da Operação</span><span>Entrada/Saída</span><span>Tipo Nota</span><span>Tipo de Contrato</span></div>
       <h3>Tipos de venda retirados da pesquisa</h3><div class="help-chip-list"><span>AT Com Custo</span><span>AT Sem Custo</span></div>
@@ -633,26 +614,9 @@ const HELP_GROUPS = [
     `
   },
   {
-    id:'validation', title:'Integrações e aceite', icon:'check', kicker:'12 · Implementação',
-    subtitle:'Origens, testes de aceite e decisões pendentes.',
-    html:`
-      <h2>Integrações previstas</h2><div class="help-table-wrap"><table class="help-table"><thead><tr><th>Módulo de origem</th><th>Informação consumida</th><th>Uso na NFS-e</th></tr></thead><tbody>
-        <tr><td><b>Pós-Venda</b></td><td>Conclusão da montagem.</td><td>Coluna Data Término de Montagem e trava especial do Item 7.</td></tr>
-        <tr><td><b>Gerenciamento de Contratos Futuros</b></td><td>Campo Término Lib.</td><td>Coluna Data Término Liberação Futura.</td></tr>
-        <tr><td><b>Comercial &gt; Contratos Realizados</b></td><td>Situação e data/hora de finalização financeira.</td><td>Indicador Fin Processado e tooltip.</td></tr>
-        <tr><td><b>Integração NFS-e / Prefeitura</b></td><td>Situação fiscal, campos e regras tributárias.</td><td>Emissão, consulta, cancelamento, tributos, documentos e retornos.</td></tr>
-      </tbody></table></div>
-      <h3>Critérios de aceite</h3><ol class="help-numbered">
-        <li>Nova tela NFS-e independente, preservando a tela atual de NF-e.</li><li>Botões, filtros, tipos de venda e colunas conforme o mapeamento.</li>
-        <li>Datas de montagem e liberação futura no formato <b>DD/MM/AAAA</b>, sem horário.</li><li>Fin Processado exibindo check/alerta e data/hora de finalização no tooltip.</li>
-        <li>Itens selecionáveis individualmente, mesmo quando pertencem ao mesmo contrato.</li><li>Combo <b>Itens = 7</b>: seleção bloqueada quando a data de montagem está vazia.</li>
-        <li>Combo diferente de 7: a trava especial de montagem não é aplicada.</li><li>Seleção 3 + 4 + 5 compõe 3 + 4 + 5 + 9 sem duplicidade.</li>
-        <li>Gerar NFS-e apresenta seleção de itens seguida dos dados da emissão.</li><li>Tributos Federais abre com campos e dependências exigidos pelo portal da prefeitura.</li>
-        <li>Salvar Tributos Federais mantém os dados vinculados ao registro.</li><li>Totalizadores consistentes com filtros, paginação e itens selecionados.</li>
-        <li>Permissões e regras fiscais preexistentes preservadas.</li>
-      </ol>
-      <h3>Questões ainda abertas</h3><ul class="help-bullets"><li>Mapear tabelas/campos e relacionamentos SQL para as três novas colunas.</li><li>Validar seleção parcial dos itens 3, 4 e 5 e a remoção automática do item 9.</li><li>Definir mecanismos contra duplicidade de emissão em momentos distintos.</li><li>Definir critério exato de <b>Total a Emitir</b> e abrangência de <b>Valor Venda</b>.</li><li>Validar aplicabilidade do botão <b>Inutilizar Número</b> para NFS-e.</li><li>Confirmar portal municipal, combos, regras de retenção, obrigatoriedades e cálculos oficiais.</li><li>Definir persistência e recuperação dos tributos e permissões de alteração.</li></ul>
-    `
+    id:"validation", title:"Integrações e aceite", icon:"check", kicker:"12 · Implementação",
+    subtitle:"Origens, critérios de aceite e pendências.",
+    html:"\n<h2>Origens e integrações previstas</h2>\n<div class=\"help-table-wrap\"><table class=\"help-table\"><thead><tr><th>Origem</th><th>Informações</th></tr></thead><tbody>\n<tr><td><b>Pós-Venda</b></td><td>Data Término de Montagem, apresentada sem horário.</td></tr>\n<tr><td><b>Gerenciamento de Contratos Futuros</b></td><td>Campo Término Lib. da data de liberação futura, apresentado sem horário.</td></tr>\n<tr><td><b>Comercial &gt; Contratos Realizados</b></td><td>FIN processado, situação Aberto/Fechado e data/hora de processamento no tooltip.</td></tr>\n<tr><td><b>Cadastro de cliente</b></td><td>CPF/CNPJ para filtrar Pessoa Física/Jurídica e restringir Gerar Lote.</td></tr>\n<tr><td><b>Integração de NFS-e</b></td><td>Dados de emissão, tributos, autorizações, rejeições e controle por item e lote. O protótipo atual não se conecta a prefeitura.</td></tr>\n</tbody></table></div>\n<h3>Critérios de aceite desta revisão</h3>\n<ol class=\"help-numbered\">\n<li>FIN com apenas Aberto/Fechado e default Fechado na Carla; outras empresas usam perfil configurável.</li><li>Não trazer contratos quando FIN e data futura estiverem simultaneamente ausentes.</li>\n<li>Item 07 exige liberação futura na demonstração; requisito financeiro permanece pendente de confirmação.</li><li>Geração múltipla soma valores por item e bloqueia edição; lote desabilitado se houver CNPJ.</li>\n<li>Renegociar salva ajustes sem etapa 2; item 09 permanece automático com 3+4+5.</li><li>Status simplificados e por item, sem Gerada Parcialmente; Arquivar Nota disponível e Excluir removido.</li>\n<li>Tooltip mostra original/alterado e os filtros de data e PF/PJ funcionam.</li><li>Transmissão com Item 07 exige revisão de Tributos Federais.</li><li>Ajuda e documentação devem refletir todo o fluxo, identificando dados simulados.</li>\n</ol>\n<div class=\"help-notice help-warning\">As regras tributárias e o gatilho definitivo do FIN/Item 07 exigem validação pela equipe fiscal e pelo Financeiro antes de produção.</div>\n"
   },
   {
     id:'demo', title:'Protótipo x produção', icon:'alert', kicker:'13 · Apresentação',
@@ -716,13 +680,23 @@ function renderModal(){
 function saveTaxes(){
   const t=taxForActive();
   if(['pis','cofins','pisRet','cofinsRet','csllRate','cpRate','irRate','other'].some(k=>!Number.isFinite(t[k])||t[k]<0)){toast('Preencha valores válidos e não negativos.','error');return;}
-  const row=activeRow();state.taxes[row.id]={...t};closeModal();toast(`Tributos Federais salvos no protótipo para o contrato ${row.contract||row.code}, usando a base automática dos itens (R$ ${money(getTaxBase(row))}).`);
+  const row=activeRow();state.taxes[row.id]={...t};
+  const reviewPending=state.pendingTaxQueue.length>0||state.taxReturn==='transmission';
+  const remaining=[...state.pendingTaxQueue];closeModal();
+  toast('Tributos Federais conferidos e salvos para '+(row.contract||row.code)+' (simulação).');
+  if(reviewPending){
+    if(remaining.length){
+      state.pendingTaxQueue=remaining.slice(1);
+      state.taxReturn='transmission';
+      state.activeRow=remaining[0];openModal('tax',remaining[0]);
+    }else{state.taxReturn=null;simulateBatchTransmission();}
+  }
 }
 
-function logPreparedGeneration(row){
+function logPreparedGeneration(row,lotOverride=null){
  const sequence=state.logBatchSequence++;
  state.generationLogs.unshift({
-  id:'prep-'+sequence+'-'+row.id,lot:'DEMO-'+String(sequence).padStart(3,'0'),generatedAt:new Date().toLocaleString('pt-BR'),
+  id:'prep-'+sequence+'-'+row.id,lot:lotOverride||'DEMO-'+String(sequence).padStart(3,'0'),generatedAt:new Date().toLocaleString('pt-BR'),
   status:'Preparada',recordId:row.id,client:row.client,contract:row.contract||row.code,
   emitter:row.generationParameters?.emitter||state.genForm.emitter,items:[...(row.sentItems||[])],
   returnMessage:'Itens preparados para envio. Aguardando transmissão demonstrativa.'
@@ -731,24 +705,71 @@ function logPreparedGeneration(row){
 }
 function simulateBatchTransmission(){
  const selected=rows.filter(r=>state.selected.has(r.id));
- if(!selected.length){toast('Selecione um ou mais contratos para simular um lote. Nenhuma nota real será transmitida.','warning');return;}
- const sequence=state.logBatchSequence++,lot='DEMO-'+String(sequence).padStart(3,'0'),timestamp=new Date().toLocaleString('pt-BR');
+ if(!selected.length){toast('Selecione os contratos para simular a transmissão.','warning');return;}
+ const seq=state.logBatchSequence++,lot='DEMO-'+String(seq).padStart(3,'0');
+ const stamp=new Date().toLocaleString('pt-BR');
  selected.forEach((r,i)=>{
-  const prepared=!!r.generatedItems?.length;
+  const prepared=Array.isArray(r.generatedItems)&&r.generatedItems.length>0;
   const status=!prepared?'Aguardando preparação':i%2===0?'Autorizada':'Rejeitada';
-  const message=!prepared?'Contrato ainda não preparado com itens. Utilize Gerar NFS-e antes de simular o envio.':
-   status==='Autorizada'?'NFS-e autorizada (simulação; nenhuma nota real foi enviada).':
-   'NFS-e rejeitada (simulação): código do serviço incompatível com o emitente (motivo fictício).';
-  const entry=state.generationLogs.find(l=>l.recordId===r.id&&l.status==='Preparada');
-  const attrs={lot,generatedAt:timestamp,status,recordId:r.id,client:r.client,contract:r.contract||r.code,
-   emitter:r.generationParameters?.emitter||'Não informado',items:[...(r.sentItems||[])],returnMessage:message};
-  if(entry)Object.assign(entry,attrs);
-  else state.generationLogs.unshift({id:'batch-'+sequence+'-'+r.id,...attrs});
+  const message=!prepared?'Contrato ainda não preparado para transmissão; use Gerar NFS-e.':
+   status==='Autorizada'?'NFS-e autorizada (simulação; sem envio à prefeitura).':
+   'NFS-e rejeitada (simulação): inconsistência no serviço do emitente (motivo fictício).';
+  if(prepared){
+   r.issuedItems=r.issuedItems||[];
+   r.generatedItems.forEach(item=>{
+    r.itemStatus[item.id]=status==='Autorizada'?'Gerada':'Nao Gerada';
+    if(status==='Autorizada'&&!r.issuedItems.includes(item.id))r.issuedItems.push(item.id);
+   });
+   // A situação de cada item é independente. Restantes não gerados permanecem Não Gerada.
+   r.status=Object.values(r.itemStatus).some(v=>v==='Nao Gerada')?'Nao Gerada':
+     Object.values(r.itemStatus).some(v=>v==='Pendente de Transmissão')?'Pendente de Transmissão':'Gerada';
+   r.generatedItems=[];
+  }
+  const attrs={lot,generatedAt:stamp,status,recordId:r.id,client:r.client,contract:r.contract||r.code,
+    emitter:r.generationParameters?.emitter||'Não informado',items:[...(r.sentItems||[])],returnMessage:message};
+  const log=state.generationLogs.find(x=>x.recordId===r.id&&x.status==='Preparada');
+  if(log)Object.assign(log,attrs);else state.generationLogs.unshift({id:'batch-'+seq+'-'+r.id,...attrs});
  });
- state.logPage=1;
- toast('Lote '+lot+' simulado com '+selected.length+' contrato(s). Consulte Log Geração Notas. Nenhum envio externo foi realizado.','warning');
+ state.logPage=1;renderTable();
+ toast('Lote '+lot+' simulado. Consulte Log Geração Notas para os resultados fictícios.','warning');
 }
-
+function startTransmission(){
+ const selected=rows.filter(r=>state.selected.has(r.id));
+ if(!selected.length){toast('Selecione contratos para a transmissão demonstrativa.','warning');return;}
+ // Apenas itens 07 preparados exigem revisão das retenções antes do envio.
+ const item7=selected.filter(r=>r.generatedItems?.some(i=>i.id===7)&&r.itemStatus?.[7]==='Pendente de Transmissão');
+ if(item7.length){
+  state.pendingTaxQueue=item7.map(r=>r.id);
+  state.taxReturn='transmission';
+  const first=state.pendingTaxQueue.shift();
+  state.activeRow=first;
+  openModal('tax',first);
+  toast('Item 07 detectado: confira Tributos Federais antes de transmitir. Regra definitiva a validar.','warning');
+  return;
+ }
+ simulateBatchTransmission();
+}
+function dateBRFromISO(iso){const p=String(iso||'').split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'';}
+function prepareSelectedGeneration(){
+ const targets=generationTargets(),ids=selectedItemIds();
+ if(!ids.size){toast('Selecione ao menos um item.','warning');return;}
+ const sharedLot=state.batchMode?'DEMO-'+String(state.logBatchSequence++).padStart(3,'0'):null;
+ targets.forEach(row=>{
+  const items=itemCatalog.filter(i=>ids.has(i.id)).map(i=>itemForContract(row,i.id));
+  row.generatedItems=items.map(i=>({id:i.id,pct:i.pct,value:i.value}));
+  row.sentItems=items.map(i=>String(i.id).padStart(2,'0'));
+  row.itemStatus=row.itemStatus||{};
+  items.forEach(i=>row.itemStatus[i.id]='Pendente de Transmissão');
+  itemCatalog.filter(i=>!ids.has(i.id)).forEach(i=>row.itemStatus[i.id]=row.itemStatus[i.id]||'Nao Gerada');
+  row.issueDate=dateBRFromISO(state.genForm.date);
+  row.generationParameters={...state.genForm};
+  row.status=Object.values(row.itemStatus).some(status=>status==='Nao Gerada')?'Nao Gerada':'Pendente de Transmissão';
+  logPreparedGeneration(row,sharedLot);
+ });
+ state.batchMode=false;state.generationMode='normal';
+ closeModal();renderTable();
+ toast(targets.length+' contrato(s) preparado(s). Itens não preparados permanecem Não Gerada; sem emissão fiscal real.');
+}
 function modalAction(action){
  if(action==='close'){closeModal();return;}
  if(action.startsWith('logs-')){
@@ -760,17 +781,23 @@ function modalAction(action){
   renderModal();return;
  }
  if(action==='tab-items'){state.step=1;renderModal();return;}
- if(action==='tab-data'){if(selectedItemIds().size){state.step=2;renderModal();}else toast('Selecione ao menos um item.','warning');return;}
- if(action==='next'){if(!selectedItemIds().size){toast('Selecione ao menos um item para continuar.','warning');return;}state.step=2;renderModal();return;}
+ if(action==='tab-data'){if(state.generationMode==='renegotiate')return;if(selectedItemIds().size){state.step=2;renderModal();}else toast('Selecione ao menos um item.','warning');return;}
+ if(action==='next'){if(state.generationMode==='renegotiate')return;if(!selectedItemIds().size){toast('Selecione ao menos um item para continuar.','warning');return;}state.step=2;renderModal();return;}
+ if(action==='save-renegotiation'){
+  if(state.generationMode!=='renegotiate')return;
+  const row=generationTargets()[0];
+  state.itemEdits[row.id]={...(state.itemEdits[row.id]||{}),...(state.renegDraft||{})};
+  state.renegDraft=null;closeModal();renderTable();
+  toast('Valores renegociados salvos apenas nesta sessão, sem emissão.');return;
+ }
  if(action==='save-taxes'){saveTaxes();return;}
  if(action==='confirm-generation'){
-   if(!state.genForm.emitter){toast('Selecione o Emitente para continuar.','warning');$('gen-emitter').focus();return;}
-   if(!state.genForm.ibscbs||!state.genForm.service||!state.genForm.iss||!state.genForm.nbs||!state.genForm.date){toast('Preencha IBS/CBS, Cód. Serviço NFS-e, Tipo Trib. ISS, Item NBS e a data de emissão.','warning');return;}
-   const r=activeRow();r.sentItems=[...selectedItemIds()].sort((a,b)=>a-b).map(id=>String(id).padStart(2,'0'));
-   r.generatedItems=itemCatalog.map(getItemValue).filter(i=>selectedItemIds().has(i.id)).map(i=>({id:i.id,pct:i.pct,value:i.value}));
-   r.generationParameters={...state.genForm};
-   logPreparedGeneration(r);
-   r.status='Nao Gerada';closeModal();renderTable();toast(`NFS-e preparada para demonstração: itens ${r.sentItems.join(', ')}. Nenhuma nota foi transmitida.`);return;
+  if(state.generationMode==='renegotiate')return;
+  if(!state.genForm.emitter){toast('Selecione o Emitente.','warning');return;}
+  if(!state.genForm.ibscbs||!state.genForm.service||!state.genForm.iss||!state.genForm.nbs||!state.genForm.date){
+   toast('Preencha IBS/CBS, serviço, ISS, NBS e data de emissão.','warning');return;
+  }
+  prepareSelectedGeneration();return;
  }
  if(action==='save-redefine'){
    const val=parseNumber($('redefine-input').value);if(val<0){toast('Valor inválido.','error');return;}
@@ -797,23 +824,47 @@ function setGenerationItem(id,checked){
 function onGlobalAction(action,el){
   switch(action){
     case 'selected':state.selectedOnly=!state.selectedOnly;state.page=1;renderTable();return;
-    case 'generate':demoTarget(true);state.itemSelection=new Set([3,4,5]);state.step=1;openModal('generation');return;
+    case 'generate':{
+      demoTarget(true);state.generationMode='normal';state.renegDraft=null;state.batchMode=false;
+      state.generationRowIds=rows.filter(r=>state.selected.has(r.id)).map(r=>r.id);
+      state.itemSelection=new Set([3,4,5]);state.step=1;openModal('generation');return;
+    }
+    case 'generate-batch':{
+      const selected=rows.filter(r=>state.selected.has(r.id));
+      if(!selected.length||selected.some(r=>personType(r)==='PJ')){
+        toast('Gerar Lote exige ao menos um CPF e não admite CNPJ na seleção.','warning');return;
+      }
+      state.generationMode='normal';state.renegDraft=null;state.batchMode=true;
+      state.generationRowIds=selected.map(r=>r.id);
+      state.itemSelection=new Set([3,4,5]);state.step=1;state.activeRow=selected[0].id;
+      openModal('generation');return;
+    }
+    case 'renegotiate':{
+      const selected=rows.filter(r=>state.selected.has(r.id));
+      if(selected.length!==1){toast('Renegociar exige exatamente um contrato selecionado.','warning');return;}
+      state.activeRow=selected[0].id;state.generationRowIds=[selected[0].id];
+      state.generationMode='renegotiate';state.renegDraft={};state.batchMode=false;state.step=1;
+      state.itemSelection=new Set([3,4,5]);openModal('generation');return;
+    }
     case 'tax':demoTarget(false);openModal('tax');return;
     case 'impostos':demoTarget(false);openModal('impostos');return;
     case 'generation-logs':state.logPage=1;openModal('generation-logs');return;
-    case 'transmit':simulateBatchTransmission();return;
+    case 'transmit':startTransmission();return;
     case 'resend':toast('Reenvio de NFS-e e XML: simulado; nenhum e-mail foi enviado.','warning');return;
     case 'refresh':renderTable();toast('Consulta da listagem atualizada localmente.');return;
     case 'cancel':{
       const selected=rows.filter(r=>state.selected.has(r.id));if(!selected.length){toast('Selecione um contrato para simular o cancelamento.','warning');return;}
       if(window.confirm(`Simular cancelamento de ${selected.length} registro(s)? Esta ação afeta apenas o protótipo.`)){
-        selected.forEach(r=>r.status='Cancelada');state.selected.clear();renderTable();toast('Cancelamento simulado. Nenhuma nota real foi cancelada.');
+        selected.forEach(r=>{r.status='Cancelada';itemCatalog.forEach(i=>r.itemStatus[i.id]='Cancelada');});state.selected.clear();renderTable();toast('Cancelamento simulado. Nenhuma nota real foi cancelada.');
       }return;}
-    case 'remove':{
-      if(!state.selected.size){toast('Selecione um contrato para excluir na demonstração.','warning');return;}
-      if(window.confirm('Excluir os registros selecionados apenas deste protótipo?')){
-        const keep=rows.filter(r=>!state.selected.has(r.id));rows.splice(0,rows.length,...keep);state.selected.clear();renderTable();toast('Registros removidos da visualização local.');
-      }return;}
+    case 'archive':{
+      const selected=rows.filter(r=>state.selected.has(r.id));
+      if(!selected.length){toast('Selecione uma nota para arquivar.','warning');return;}
+      if(window.confirm('Arquivar '+selected.length+' nota(s) apenas neste protótipo?')){
+        selected.forEach(r=>{r.status='Arquivada';itemCatalog.forEach(i=>r.itemStatus[i.id]='Arquivada');});
+        state.selected.clear();renderTable();toast('Notas arquivadas na sessão de demonstração.');
+      }return;
+    }
     case 'invalidate':toast('Inutilização de número NFS-e: aplicabilidade depende do município. Apenas demonstração.','warning');return;
     case 'download':{
       const listed=rows.filter(r=>state.selected.has(r.id));const data=listed.length?listed:getFilteredRows();
@@ -848,7 +899,7 @@ function bindEvents(){
    if(el.matches('[data-select-row]')){chooseRow(el.dataset.selectRow,el.checked);return;}
    if(el.id==='select-all'){
      const list=getFilteredRows().slice((state.page-1)*state.pageSize,state.page*state.pageSize);
-     let blocked=0;list.forEach(r=>{if(isRowLocked(r)){blocked++;return;}if(el.checked)state.selected.add(r.id);else state.selected.delete(r.id);});renderTable();if(blocked&&state.filterItem==='7')toast(`${blocked} registro(s) sem montagem concluída não puderam ser selecionados.`,'warning');return;
+     let blocked=0;list.forEach(r=>{if(isRowLocked(r)){blocked++;return;}if(el.checked)state.selected.add(r.id);else state.selected.delete(r.id);});renderTable();if(blocked&&state.filterItem==='7')toast(`${blocked} registro(s) sem liberação futura não puderam ser selecionados (regra provisória).`,'warning');return;
    }
    if(el.matches('[data-gen-item-value]')){changeItemValue(Number(el.dataset.genItemValue),el.dataset.genValueKey,el.value,true);return;}
    if(el.matches('[data-gen-item]')){setGenerationItem(Number(el.dataset.genItem),el.checked);return;}
@@ -863,18 +914,21 @@ function bindEvents(){
    if(el.id==='loja')state.filterStore=el.value;
    if(el.id==='status')state.filterStatus=el.value;
    if(el.id==='fin-filter')state.filterFin=el.value;
+   if(el.id==='person-filter')state.filterPerson=el.value;
    if(el.id==='item-filter'){state.filterItem=el.value;resetSelectionOnItemChange();}
    if(el.id==='search-type')state.searchType=el.value;
    if(el.id==='start-date')state.searchStart=el.value;
    if(el.id==='end-date')state.searchEnd=el.value;
    if(el.id==='date-field')state.searchField=el.value;
    if(el.id==='periodo')state.period=el.value;
-   if(['loja','status','fin-filter','item-filter'].includes(el.id)){state.page=1;renderTable();}
+   if(['loja','status','fin-filter','person-filter','item-filter'].includes(el.id)){state.page=1;renderTable();}
  });
  $('search-input').addEventListener('input',e=>{state.search=e.target.value.trim();state.page=1;renderTable()});
  $('search-input').addEventListener('keydown',e=>{if(e.key==='Enter'){state.page=1;renderTable();}});
  document.addEventListener('input',e=>{if(e.target.id==='help-search'){searchHelp(e.target.value);return;}if(e.target.matches('[data-gen-field]')&&e.target.tagName==='TEXTAREA')state.genForm[e.target.dataset.genField]=e.target.value;});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.modal)closeModal();});
 }
+if($('fin-filter'))$('fin-filter').value=state.filterFin;
+if($('item-filter'))$('item-filter').value=state.filterItem;
 applyIcons();bindEvents();renderTable();
 

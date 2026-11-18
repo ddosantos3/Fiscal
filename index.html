@@ -7,7 +7,7 @@
   <title>eFinance | Fiscal — Nota Fiscal de Serviço (Protótipo)</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
-<body>
+<body data-company-profile="carla">
   <div class="app-shell" id="app">
     <header class="topbar">
       <div class="topbar-left">
@@ -35,13 +35,15 @@
         <div class="toolbar-group toolbar-main">
           <button class="tool-btn tool-success" type="button" data-action="selected"><span data-icon="check"></span>Ver selecionados</button>
           <button class="tool-btn tool-primary" type="button" data-action="generate"><span data-icon="layers"></span>Gerar NFS-e</button>
+          <button class="tool-btn" id="generate-batch" type="button" data-action="generate-batch" disabled title="Selecione contratos de Pessoa Física; CNPJ não pode integrar este lote"><span data-icon="layers"></span>Gerar Lote</button>
+          <button class="tool-btn" type="button" data-action="renegotiate" title="Ajustar valores dos itens de um contrato, sem emitir nota"><span data-icon="edit"></span>Renegociar</button>
           <button class="tool-btn" type="button" data-action="transmit"><span data-icon="send"></span>Transmitir</button>
           <button class="tool-btn" type="button" data-action="danfse"><span data-icon="printer"></span>DANFSe</button>
           <button class="tool-btn" type="button" data-action="resend"><span data-icon="mail"></span>Reenviar NFS-e e XML por e-mail</button>
           <button class="tool-btn" type="button" data-action="refresh"><span data-icon="refresh"></span>Forçar Nova Consulta</button>
           <button class="tool-btn" type="button" data-action="cancel"><span data-icon="x-circle"></span>Cancelar NFS-e</button>
           <button class="tool-btn" type="button" data-action="invalidate"><span data-icon="circle-off"></span>Inutilizar Número</button>
-          <button class="tool-btn" type="button" data-action="remove"><span data-icon="trash"></span>Excluir</button>
+          <button class="tool-btn" type="button" data-action="archive" title="Arquivar as notas selecionadas"><span data-icon="file"></span>Arquivar Nota</button>
           <button class="tool-btn" type="button" data-action="download"><span data-icon="download"></span>Downloads</button>
           <button class="tool-btn" type="button" data-action="redefine"><span data-icon="edit"></span>Redefinir Valor da NFS-e</button>
         </div>
@@ -60,10 +62,22 @@
       <section class="filter-panel">
         <div class="filter-line">
           <label for="loja">Loja:</label><select id="loja"><option value="">--Todas--</option><option>352</option><option>353</option></select>
-          <label for="status">Status:</label><select id="status"><option value="">--Todos--</option><option value="Nao Gerada">Não Geradas</option><option value="Gerada Parcialmente">Geradas Parcialmente</option><option value="Pendente de Transmissão">Pendente de Transmissão</option><option value="Transmitindo">Transmitindo</option><option value="Aguardando Resposta">Aguardando Resposta</option><option value="Autorizada">Autorizada</option><option value="Inutilizada">Inutilizada</option><option value="Denegada">Denegada</option><option value="Cancelada">Cancelada</option><option value="Nota de Entrada">Nota de Entrada</option><option value="Arquivada">Arquivada</option></select>
-          <label for="item-filter">Itens:</label><select id="item-filter"><option value="">--Todos--</option><option value="1">01 - Produto</option><option value="2">02 - Transporte/Armazenamento</option><option value="3">03 - Coordenação</option><option value="4">04 - Supervisão de Montagem</option><option value="5">05 - Instalação/Assistência</option><option value="6">06 - Layout/Medição/Conferência</option><option value="7">07 - Contratado - Franquia</option><option value="8">08 - Financeira</option><option value="9">09 - Reserva</option></select>
-          <label for="fin-filter">FIN:</label><select id="fin-filter" aria-label="Filtrar situação FIN"><option value="">--Todos--</option><option value="Aberto - Todos">Aberto - Todos</option><option value="Aberto - Não enviado">Aberto - Não enviado</option><option value="Aberto - Enviado sem fin">Aberto - Enviado sem fin</option><option value="Fechado - Enviado com fin">Fechado - Enviado com fin</option><option value="Em substituição">Em substituição</option></select>
-          <span class="filter-note" id="item7-note" hidden><span data-icon="alert"></span>Item 7: montagem concluída obrigatória</span>
+          <label for="status">Status:</label><select id="status">
+            <option value="Gerada">Gerada</option>
+            <option value="Nao Gerada" selected>Não Gerada</option>
+            <option value="Pendente de Transmissão">Pendente de Transmissão</option>
+            <option value="Cancelada">Cancelada</option>
+            <option value="Arquivada">Arquivada</option>
+          </select>
+          <label for="item-filter">Itens:</label><select id="item-filter"><option value="1">01 - Produto</option><option value="2">02 - Transporte/Armazenamento</option><option value="3" selected>03 - Coordenação</option><option value="4">04 - Supervisão de Montagem</option><option value="5">05 - Instalação/Assistência</option><option value="6">06 - Layout/Medição/Conferência</option><option value="7">07 - Contratado - Franquia</option><option value="8">08 - Financeira</option><option value="9">09 - Reserva</option></select>
+          <label for="fin-filter">FIN:</label><select id="fin-filter" aria-label="Filtrar situação financeira">
+            <option value="Aberto">Aberto</option>
+            <option value="Fechado" selected>Fechado</option>
+          </select>
+          <label for="person-filter">Pessoa:</label><select id="person-filter" aria-label="Filtrar Pessoa Física ou Jurídica pelo CPF/CNPJ">
+            <option value="">--Todas--</option><option value="PF">Pessoa Física</option><option value="PJ">Pessoa Jurídica</option>
+          </select>
+          <span class="filter-note" id="item7-note" hidden><span data-icon="alert"></span>Item 07: liberação futura necessária (regra financeira a validar)</span>
         </div>
         <div class="search-line"><span class="search-binoculars" data-icon="binoculars"></span><label for="search-type">Buscar por:</label><select id="search-type" class="search-type"><option value="client">Cliente</option><option value="contract">Contrato</option><option value="code">Cód.</option></select><input id="search-input" type="search" placeholder="Digite aqui o que deseja buscar" aria-label="Pesquisar registros" /></div>
       </section>
@@ -71,7 +85,7 @@
       <section class="grid-area" aria-label="Contratos para emissão de NFS-e">
         <div class="table-scroll"><table class="records-table"><thead><tr>
           <th class="col-check"><input aria-label="Selecionar todos os contratos visíveis" type="checkbox" id="select-all" /></th>
-          <th>Emp</th><th>Loja</th><th>Cód.</th><th class="col-client">Cliente</th><th>Tipo Venda</th><th>Contrato</th><th>Status</th><th>Data Venda</th><th>Pedidos</th><th class="money">Valor Venda</th><th>Itens Enviados p/ NFS-e</th><th title="Data Término de Montagem">Data Término de Montagem</th><th title="Data Término Liberação Futura">Data Término Liberação Futura</th><th>Fin Processado</th>
+          <th>Empresa</th><th>Loja</th><th>Cód. Cliente</th><th class="col-client" title="Nome e CPF/CNPJ no tooltip">Cliente / Tomador</th><th>Tipo de Venda</th><th>Contrato</th><th>Status NFS-e</th><th>Data da Venda</th><th>Pedidos</th><th class="money">Valor da Venda</th><th>Itens da NFS-e</th><th title="Data de conclusão da montagem no pós-venda">Data Término de Montagem</th><th title="Data Término de Liberação no Gerenciamento de Contratos Futuros">Data Término Liberação Futura</th><th title="FIN em Comercial > Contratos Realizados">FIN Processado</th>
         </tr></thead><tbody id="records-body"></tbody></table></div>
         <div class="empty-state" id="empty-state" hidden>Nenhum registro encontrado para os filtros selecionados.</div>
       </section>
@@ -79,7 +93,7 @@
       <section class="pagination-bar">
         <div class="paging-left"><button type="button" class="mini" data-action="first-page" aria-label="Primeira página">«</button><button type="button" class="mini" data-action="prev-page" aria-label="Página anterior">‹</button><span>Página</span><strong class="page-number" id="page-number">1</strong><span>de <span id="page-total">1</span></span><button type="button" class="mini" data-action="next-page" aria-label="Próxima página">›</button><button type="button" class="mini" data-action="last-page" aria-label="Última página">»</button><button type="button" class="mini" data-action="refresh" title="Atualizar" aria-label="Atualizar"><span data-icon="refresh"></span></button><span class="divider-v"></span>
           <label for="periodo">Período:</label><select id="periodo"><option value="3">3 meses</option><option value="1">1 mês</option><option value="6">6 meses</option><option value="12">12 meses</option><option value="0">Todos</option></select>
-          <label for="date-field">Filtrar Por:</label><select id="date-field"><option value="dataVenda">Data Venda</option><option value="dataMontagem">Data Término de Montagem</option><option value="dataLiberacao">Data Término Liberação Futura</option></select>
+          <label for="date-field">Filtrar Por:</label><select id="date-field"><option value="dataEmissao">Data de Emissão</option><option value="dataVenda" selected>Data de Venda</option><option value="dataMontagem">Data Término de Montagem</option><option value="dataLiberacao">Data Término Liberação Futura</option></select>
           <label for="start-date">de:</label><input type="date" id="start-date" /><label for="end-date">até:</label><input type="date" id="end-date" />
           <button type="button" class="filter-apply" data-action="apply-filter"><span data-icon="filter"></span>Aplicar Filtro</button>
         </div>
