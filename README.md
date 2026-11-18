@@ -26,7 +26,21 @@ A entrada da aplicação é `index.html`. O projeto utiliza `styles.css`, `app.j
 - `MANUAL_FUNCIONAL_NFSE.md` — documentação completa que também aparece no botão Ajuda.
 - `MAPEAMENTO_INTERACOES.md` — lista das ações de interface e regras simuladas.
 
-## Alterações aprovadas na apresentação
+## Revisão funcional de 18/11/2026
+
+- FIN com apenas **Aberto / Fechado**, default **Fechado** no perfil Carla e configuração por empresa.
+- Consulta exclui contrato sem FIN e sem Data Término Liberação Futura, simultaneamente.
+- Item 07 usa liberação futura como trava provisória: regra final pendente de validação do Financeiro.
+- Geração com múltiplos clientes mostra soma dos valores por item em modo somente leitura; Renegociar permite editar um contrato e salvar sem emitir.
+- **Gerar Lote** disponível para CPF, desabilitado quando há CNPJ na seleção.
+- Status por item: Gerada, Não Gerada, Pendente de Transmissão, Cancelada e Arquivada; sem Gerada Parcialmente.
+- Combo Itens apenas 01–09, filtro Pessoa CPF/CNPJ, quatro opções de data para pesquisa.
+- Transmitir com Item 07 preparado abre Tributos Federais antes de continuar.
+- **Excluir** removido e **Arquivar Nota** restaurado.
+- Cabeçalhos ajustados, tooltip dos valores editados, contador Total da Busca efetivo.
+- **Ajuda** e mapeamento revisados. Operações fiscais e logs continuam demonstrativos.
+
+## Histórico da apresentação (versões anteriores)
 
 - Cabeçalho do módulo identificado como **Fiscal — Nota Fiscal de Serviço Eletrônica**.
 
