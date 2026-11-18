@@ -26,6 +26,15 @@ A entrada da aplicação é `index.html`. O projeto utiliza `styles.css`, `app.j
 - `MANUAL_FUNCIONAL_NFSE.md` — documentação completa que também aparece no botão Ajuda.
 - `MAPEAMENTO_INTERACOES.md` — lista das ações de interface e regras simuladas.
 
+## Ajustes de nomenclatura da grid — 18/11/2026
+
+- Cabeçalhos da grid: **Emp; Loja; Cód.; Cliente; Tipo Venda; Contrato; Status; Data Venda; Pedidos; Valor Venda; Itens Enviados P/ gerar NFS-e; Térm.Prog.; Término Lib.; F.P.**
+- Todos os 14 cabeçalhos possuem tooltip explicativo ao passar o mouse, inclusive as abreviações.
+- **Térm.Prog.** — *Data do término da Programação*; origem funcional a localizar em **Gerenciamento de Montagem/Assist. Técnica**.
+- **F.P.** — *Status do processo de finalização*; referência **Comercial > Contratos Realizados**, preservando tooltip da célula com a data/hora do FIN.
+- **Término Lib.** — *Data término do processo de liberação*; referência **Comercial > Gerenciamento de Contratos Futuros**.
+- As telas são referências para investigação, não evidência de nomes SQL confirmados. A Ajuda e o manual detalham todas as colunas.
+
 ## Revisão funcional de 18/11/2026
 
 - FIN com apenas **Aberto / Fechado**, default **Fechado** no perfil Carla e configuração por empresa.

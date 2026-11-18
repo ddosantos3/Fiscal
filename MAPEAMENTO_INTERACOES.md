@@ -27,6 +27,9 @@ Este é um **protótipo de apresentação**, sem conexão fiscal. Fonte detalhad
 | Total da Busca (Item) | Quantidade de registros retornados, sem total fictício. |
 | Total (Valor Venda) | Soma da coluna Valor da Venda do conjunto filtrado. |
 | Total (Valor Venda Selecionado) | Soma da coluna Valor da Venda apenas nos contratos marcados. |
-| Colunas | Empresa; Loja; Cód. Cliente; Cliente/Tomador; Tipo de Venda; Contrato; Status NFS-e; Data da Venda; Pedidos; Valor da Venda; Itens da NFS-e; Data Término de Montagem; Data Término Liberação Futura; FIN Processado. |
+| Colunas da grid | **Emp; Loja; Cód.; Cliente; Tipo Venda; Contrato; Status; Data Venda; Pedidos; Valor Venda; Itens Enviados P/ gerar NFS-e; Térm.Prog.; Término Lib.; F.P.** Todos os 14 cabeçalhos exibem tooltip ao passar o mouse. |
+| Térm.Prog. | Tooltip: **Data do término da Programação**. Referência de origem: **Gerenciamento de Montagem/Assist. Técnica**. |
+| Término Lib. | Tooltip: **Data término do processo de liberação**. Referência de origem: **Comercial > Gerenciamento de Contratos Futuros**. |
+| F.P. | Tooltip do cabeçalho: **Status do processo de finalização**. Origem: **Comercial > Contratos Realizados**. O check/alerta da célula mantém tooltip com data/hora do FIN. |
 
 **Riscos e pendências:** regra real do Financeiro para Item 07, política de FIN das demais empresas, fonte de CPF/CNPJ e emissor, persistência e autorização de lotes, retenções tributárias oficiais e testes integrados. Os dados do protótipo são fictícios e não representam notas autorizadas.
