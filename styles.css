@@ -282,7 +282,7 @@
 @media(max-height:660px){.modal.help-modal{height:calc(100vh - 20px);max-height:calc(100vh - 20px);min-height:0}.help-reader{padding:16px 20px}.help-modal .modal-header{min-height:42px}}
 
 
-/* Barra NFS-e — ações agrupadas como no sistema original; somente Ajuda afastada. */
+/* Barra NFS-e — ações contínuas, gap uniforme; Ajuda acompanha Imprimir sem margem automática. */
 .toolbar{
   display:flex;
   flex-wrap:wrap;
@@ -299,7 +299,7 @@
   align-self:center;
 }
 .toolbar .tool-btn[data-action="help"]{
-  margin-left:auto !important;
+  margin-left:0 !important;
 }
 @media (max-width:1690px){
   .toolbar{justify-content:flex-start;gap:4px;}
@@ -438,5 +438,5 @@
 .gen-editable:disabled{color:#294a69;opacity:1;background:#e9f0f7;border-color:#ccd8e5;cursor:default}
 .generation-items-table .gen-editable[title]{cursor:help}
 .generation-items-table tr.muted .gen-editable:disabled{color:#7690a6}
-@media(min-width:1750px){.toolbar{flex-wrap:nowrap;gap:3px}.toolbar-main{flex:0 1 auto}.toolbar-group{gap:3px}.tool-btn{font-size:10.5px;padding:4px 5px;gap:3px}.tool-btn svg{width:13px;height:13px}.toolbar-secondary{margin-left:auto}}
+@media(min-width:1750px){.toolbar{flex-wrap:nowrap;gap:3px}.toolbar-main{flex:0 1 auto}.toolbar-group{gap:3px}.tool-btn{font-size:10.5px;padding:4px 5px;gap:3px}.tool-btn svg{width:13px;height:13px}.toolbar-secondary{margin-left:0}}
 @media(max-width:1749px){.toolbar-main{flex:1 1 auto}.toolbar-secondary{flex:1 1 auto}}
